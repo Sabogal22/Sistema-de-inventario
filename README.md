@@ -1,4 +1,4 @@
-# 📦 Inventory Management API
+# 📦 Inventory System - FET
 
 ## 📖 Descripción
 Este proyecto es una API para la gestión de inventarios utilizando **Django Rest Framework (DRF)**. Permite manejar usuarios, ubicaciones, categorías, ítems y su historial de movimientos, mantenimientos y disposiciones.
