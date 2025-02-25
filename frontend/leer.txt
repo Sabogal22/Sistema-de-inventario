@@ -1,0 +1,5 @@
+deberan colocar aca todo lo del frontend, puedes eliminar este archivo no pasa nada
+
+aca no debe ir nada de backend en esta carpeta
+
+Att: Sabogal22
