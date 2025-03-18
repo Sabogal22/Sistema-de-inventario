@@ -35,11 +35,11 @@ __pycache__/
 .env
 *.log
 
-# Ignorar migraciones innecesarias (pero no la carpeta)
-**/migrations/*.pyc
-**/migrations/__pycache__/
-
 # Archivos de configuración de IDEs y del sistema
 .vscode/
 .idea/
 .DS_Store
+
+# Ignorar archivos temporales en migrations
+**/migrations/*.pyc
+**/migrations/__pycache__/
