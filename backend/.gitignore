@@ -34,6 +34,8 @@ __pycache__/
 # Ignorar archivos de entorno y configuraciones locales
 .env
 *.log
+/venv
+/.venv
 
 # Archivos de configuración de IDEs y del sistema
 .vscode/
