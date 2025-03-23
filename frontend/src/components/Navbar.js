@@ -1,23 +1,54 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "Nuevo producto agregado", read: false },
-    { id: 2, message: "Stock bajo en 'Laptop HP'", read: false },
-    { id: 3, message: "Orden #1234 completada", read: false },
-  ]);
+  const token = localStorage.getItem("access_token");
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // Obtener notificaciones desde la API
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:8000/notifications/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setNotifications(response.data);
+      } catch (err) {
+        setError("Error al cargar las notificaciones.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
+    if (token) {
+      fetchNotifications();
+    }
+  }, [token]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  // Marcar todas las notificaciones como leídas
+  const markAllAsRead = async () => {
+    try {
+      await axios.post("http://127.0.0.1:8000/notifications/mark-all/", {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Actualizar estado localmente
+      setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
+    } catch (err) {
+      setError("Error al marcar como leídas.");
+    }
   };
 
+  // Cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     navigate("/");
@@ -79,12 +110,16 @@ const Navbar = () => {
               {showNotifications && (
                 <div className="dropdown-menu d-block position-absolute end-0 top-100 mt-2 shadow-lg bg-white rounded" style={{ minWidth: "250px" }}>
                   <h6 className="dropdown-header">Notificaciones</h6>
-                  {notifications.length > 0 ? (
+                  {loading ? (
+                    <div className="dropdown-item text-muted">Cargando...</div>
+                  ) : error ? (
+                    <div className="dropdown-item text-danger">{error}</div>
+                  ) : notifications.length > 0 ? (
                     <>
                       {notifications.map((notif) => (
-                        <div key={notif.id} className={`dropdown-item d-flex justify-content-between align-items-center ${notif.read ? "text-muted" : ""}`}>
+                        <div key={notif.id} className={`dropdown-item d-flex justify-content-between align-items-center ${notif.is_read ? "text-muted" : ""}`}>
                           {notif.message}
-                          {!notif.read && <span className="badge bg-primary">Nuevo</span>}
+                          {!notif.is_read && <span className="badge bg-primary">Nuevo</span>}
                         </div>
                       ))}
                       <div className="dropdown-divider"></div>
