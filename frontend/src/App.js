@@ -1,17 +1,19 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import PrivateRoute from './components/PrivateRoute'; // Importa el PrivateRoute
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./components/Login";
+import Dashboard from "./components/Dashboard";
+import Products from "./components/Products";
+import PrivateRoute from "./components/PrivateRoute";
 
 const App = () => {
     return (
         <Router>
             <Routes>
                 <Route path="/" element={<Login />} />
-                {/* Protege el Dashboard con PrivateRoute */}
-                <Route path="/dashboard" element={<PrivateRoute />}>
-                    <Route index element={<Dashboard />} />
+                {/* Rutas protegidas dentro de PrivateRoute */}
+                <Route element={<PrivateRoute />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/products" element={<Products />} />
                 </Route>
             </Routes>
         </Router>
