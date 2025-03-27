@@ -1,19 +1,26 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 
 const PrivateRoute = () => {
-    const token = localStorage.getItem("access_token");
+    const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-    if (!token) {
-        return <Navigate to="/" replace />;
+    useEffect(() => {
+        const token = localStorage.getItem("access_token");
+        setIsAuthenticated(!!token);
+    }, []);
+
+    if (isAuthenticated === null) {
+        return <div>Cargando...</div>;
     }
 
-    return (
+    return isAuthenticated ? (
         <>
             <Navbar />
             <Outlet />
         </>
+    ) : (
+        <Navigate to="/" replace />
     );
 };
 
