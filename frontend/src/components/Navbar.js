@@ -91,7 +91,7 @@ const Navbar = () => {
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
       <div className="container">
         <Link className="navbar-brand" to="/dashboard">
-          <i className="fa-solid fa-warehouse me-2"></i> Inventario
+          <i className="fa-solid fa-warehouse me-2"></i> Inventario FET
         </Link>
 
         <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
