@@ -9,6 +9,7 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [user, setUser] = useState({ username: "", role: "" });
 
   const token = localStorage.getItem("access_token");
 
@@ -29,6 +30,27 @@ const Navbar = () => {
 
     if (token) {
       fetchNotifications();
+    }
+  }, [token]);
+
+  // Obtener datos del usuario
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:8000/user/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUser({
+          username: response.data.username,
+          role: response.data.role,
+        });
+      } catch (error) {
+        console.error("Error al obtener usuario:", error);
+      }
+    };
+
+    if (token) {
+      fetchUser();
     }
   }, [token]);
 
@@ -99,6 +121,20 @@ const Navbar = () => {
               </Link>
             </li>
 
+            {/* Mostrar "Usuarios" solo si el usuario es admin */}
+            {user.role === "admin" && (
+              <li className="nav-item">
+                <Link className="nav-link" to="/user">
+                  <i className="fa-solid fa-users me-1"></i> Usuarios
+                </Link>
+              </li>
+            )}
+
+            {/* Mostrar nombre del usuario y su rol */}
+            <li className="nav-item text-white ms-3">
+              <span className="nav-link disabled">👤 {user.username} - {user.role}</span>
+            </li>
+
             {/* Notificaciones */}
             <li className="nav-item dropdown position-relative" ref={notificationRef}>
               <button className="nav-link btn btn-link text-white position-relative" onClick={() => setShowNotifications(!showNotifications)}>
@@ -106,7 +142,6 @@ const Navbar = () => {
                 {unreadCount > 0 && <span className="badge bg-danger position-absolute top-0 start-100 translate-middle">{unreadCount}</span>}
               </button>
 
-              {/* Dropdown de notificaciones */}
               {showNotifications && (
                 <div className="dropdown-menu d-block position-absolute end-0 top-100 mt-2 shadow-lg bg-white rounded" style={{ minWidth: "250px" }}>
                   <h6 className="dropdown-header">Notificaciones</h6>
