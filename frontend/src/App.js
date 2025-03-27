@@ -6,7 +6,7 @@ import Products from "./components/Products";
 import Category from "./components/Category";
 import Location from "./components/Location";
 import PrivateRoute from "./components/PrivateRoute";
-import User from "./components/User";
+import User from "./components/Users/User";
 
 const App = () => {
   return (
