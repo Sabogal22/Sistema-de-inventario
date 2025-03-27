@@ -1,65 +1,69 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React from "react";
 
 const Dashboard = () => {
-  const [username, setUsername] = useState("");
-  const [role, setRole] = useState("");
-
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-
-    // Obtener datos del usuario
-    const fetchUser = async () => {
-      try {
-        const response = await axios.get("http://127.0.0.1:8000/user/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUsername(response.data.username);
-        setRole(response.data.role);
-      } catch (error) {
-        console.error("Error al obtener usuario:", error);
-      }
-    };
-
-    fetchUser();
-  }, []);
-
   return (
     <div className="container mt-4">
-      <h1 className="mb-4">Bienvenido, {username || "Usuario"} - Rol: {role || "Usuario"}</h1>
-      <p className="text-muted">Aquí puedes gestionar tu inventario.</p>
+      <h1 className="mb-4">📦 Inventario FET</h1>
+      <p className="text-muted">Aquí puedes ver el estado del inventario de la Fundacion Escuela Tecnologica.</p>
 
       <div className="row mt-4">
-        <div className="col-md-4">
-          <div className="card text-white bg-primary mb-3">
-            <div className="card-body">
+        {/* Total de ítems en inventario */}
+        <div className="col-md-3">
+          <div className="card text-white bg-primary mb-3 shadow">
+            <div className="card-body text-center">
               <h5 className="card-title">
-                <i className="fa-solid fa-boxes-stacked me-2"></i>Total Productos
+                <i className="fa-solid fa-box me-2"></i>Total Ítems
               </h5>
-              <p className="fs-4 fw-bold">152</p>
+              <p className="fs-3 fw-bold">320</p>
             </div>
           </div>
         </div>
-        <div className="col-md-4">
-          <div className="card text-white bg-success mb-3">
-            <div className="card-body">
+
+        {/* Ítems disponibles para préstamo */}
+        <div className="col-md-3">
+          <div className="card text-white bg-success mb-3 shadow">
+            <div className="card-body text-center">
               <h5 className="card-title">
-                <i className="fa-solid fa-warehouse me-2"></i>Stock Disponible
+                <i className="fa-solid fa-hand-holding-box me-2"></i>Disponibles
               </h5>
-              <p className="fs-4 fw-bold">89%</p>
+              <p className="fs-3 fw-bold">215</p>
             </div>
           </div>
         </div>
-        <div className="col-md-4">
-          <div className="card text-white bg-danger mb-3">
-            <div className="card-body">
+
+        {/* Ítems en mantenimiento */}
+        <div className="col-md-3">
+          <div className="card text-white bg-warning mb-3 shadow">
+            <div className="card-body text-center">
               <h5 className="card-title">
-                <i className="fa-solid fa-exclamation-circle me-2"></i>Productos Agotados
+                <i className="fa-solid fa-tools me-2"></i>En Mantenimiento
               </h5>
-              <p className="fs-4 fw-bold">12</p>
+              <p className="fs-3 fw-bold">25</p>
             </div>
           </div>
         </div>
+
+        {/* Ítems no disponibles */}
+        <div className="col-md-3">
+          <div className="card text-white bg-danger mb-3 shadow">
+            <div className="card-body text-center">
+              <h5 className="card-title">
+                <i className="fa-solid fa-ban me-2"></i>No Disponibles
+              </h5>
+              <p className="fs-3 fw-bold">80</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sección de búsqueda */}
+      <div className="mt-4">
+        <h3>🔍 Buscar un ítem</h3>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Escribe el nombre del ítem..."
+        />
       </div>
     </div>
   );
