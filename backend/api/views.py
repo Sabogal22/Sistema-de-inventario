@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from api.models import Notification
+from api.models import Notification, User
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -60,3 +60,10 @@ def delete_notification(request, notif_id):
     return Response({"message": "Notificación eliminada."})
     
   return Response({"error": "Notificación no encontrada."}, status=404)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_users(request):
+  users = list(User.objects.all().values("id", "username", "email", "role"))
+  print(users)  # 🔍 Verifica si la consulta devuelve datos
+  return Response(users)

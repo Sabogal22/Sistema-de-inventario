@@ -6,6 +6,7 @@ import Products from "./components/Products";
 import Category from "./components/Category";
 import Location from "./components/Location";
 import PrivateRoute from "./components/PrivateRoute";
+import User from "./components/User";
 
 const App = () => {
   return (
@@ -18,6 +19,7 @@ const App = () => {
           <Route path="/products" element={<Products />} />
           <Route path="/category" element={<Category />} />
           <Route path="/location" element={<Location />} />
+          <Route path="/user" element={<User />} />
         </Route>
       </Routes>
     </Router>
