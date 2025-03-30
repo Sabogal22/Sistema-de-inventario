@@ -1,8 +1,9 @@
 from django.urls import path
 from django.contrib import admin
 from api.views import (
-    get_user, get_all_users, create_user, update_user,
-    get_notifications, mark_all_as_read, mark_as_read, delete_notification, delete_user
+    get_user, get_all_users, create_user, update_user, delete_user,
+    get_all_location, create_location, update_location, delete_location,
+    get_notifications, mark_all_as_read, mark_as_read, delete_notification
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -14,11 +15,17 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # Usuarios
-    path('user/', get_user, name='get_user'),
+    path('user/', get_user, name='get_  user'),
     path('users/all/', get_all_users, name='get_all_users'),
     path("users/create/", create_user, name="users_create"),
     path("users/<int:pk>/", update_user, name="users_update"),
     path('users/delete/<int:pk>/', delete_user, name='delete-user'),
+
+    # Localización
+    path('location/all/', get_all_location, name='get_all_location'),
+    path('location/create/', create_location, name='create_location'),
+    path('location/<int:pk>/update/', update_location, name='update_location'),
+    path('location/<int:pk>/delete/', delete_location, name='delete_location'),
 
     # Notificaciones
     path('notifications/', get_notifications, name='get_notifications'),
