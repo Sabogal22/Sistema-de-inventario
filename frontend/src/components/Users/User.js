@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import UserList from "./UserList";
 import UserModal from "./UserModal";
@@ -12,7 +12,7 @@ const User = () => {
   const token = localStorage.getItem("access_token");
 
   // Definir fetchUsers fuera del useEffect
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await axios.get("http://127.0.0.1:8000/users/all/", {
         headers: { Authorization: `Bearer ${token}` },
@@ -21,12 +21,11 @@ const User = () => {
     } catch (error) {
       console.error("Error al obtener usuarios:", error);
     }
-  };
-
-  // Llamar a fetchUsers cuando cambie el token
+  }, [token]); // `useCallback` memoriza la función y solo cambia cuando `token` cambia
+  
   useEffect(() => {
     if (token) fetchUsers();
-  }, [token]);
+  }, [token, fetchUsers]); 
 
   // Abrir modal para agregar usuario
   const handleAddUser = () => {
