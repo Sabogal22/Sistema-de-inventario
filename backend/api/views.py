@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from api.models import Notification, User, Location
+from api.models import Notification, User, Location, Category
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
@@ -74,7 +74,7 @@ def get_all_users(request):
   print(users)  # 🔍 Verifica si la consulta devuelve datos
   return Response(users)
 
-# ✅ Crear un nuevo usuario
+# Crear un nuevo usuario
 @csrf_exempt
 def create_user(request):
   if request.method == "POST":
@@ -101,7 +101,7 @@ def create_user(request):
 
   return JsonResponse({"error": "Método no permitido"}, status=405)
 
-# ✅ Editar un usuario existente
+# Editar un usuario existente
 @csrf_exempt
 def update_user(request, pk):
   if request.method == "PUT":
@@ -151,14 +151,14 @@ def delete_user(request, pk):
   except Exception as e:
     return Response({"error": str(e)}, status=500)
 
-# ✅ Obtener todas las ubicaciones
+# Obtener todas las ubicaciones
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_all_location(request):
   locations = Location.objects.all().values("id", "name")
   return Response(list(locations))
 
-# ✅ Crear una nueva ubicación
+# Crear una nueva ubicación
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_location(request):
@@ -173,7 +173,7 @@ def create_location(request):
   except Exception as e:
     return Response({"error": str(e)}, status=500)
 
-# ✅ Actualizar una ubicación existente
+# Actualizar una ubicación existente
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_location(request, pk):
@@ -193,7 +193,7 @@ def update_location(request, pk):
   except Exception as e:
     return Response({"error": str(e)}, status=500)
 
-# ✅ Eliminar una ubicación
+# Eliminar una ubicación
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_location(request, pk):
@@ -203,5 +203,60 @@ def delete_location(request, pk):
     return Response({"message": "Ubicación eliminada correctamente"})
   except ObjectDoesNotExist:
     return Response({"error": "Ubicación no encontrada"}, status=404)
+  except Exception as e:
+    return Response({"error": str(e)}, status=500)
+  
+# Obtiene todas las categorías
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_category(request):
+  categories = Category.objects.all().values("id", "name")
+  return Response(list(categories))
+
+# Crear una nueva categoría
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_categiory(request):
+  try:
+    data = request.data
+    if "name" not in data or not data["name"].strip():
+      return Response({"error": "El campo 'name' es obligatorio"}, status=400)
+
+    category = Category.objects.create(name=data["name"])
+    return Response({"message": "Categoría creada exitosamente", "id": category.id}, status=201)
+
+  except Exception as e:
+    return Response({"error": str(e)}, status=500)
+
+# Actualizar una categoría existente
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_category(request, pk):
+  try:
+    data = request.data
+    category = Category.objects.get(pk=pk)
+
+    if "name" in data and data["name"].strip():
+      category.name = data["name"]
+      category.save()
+      return Response({"message": "Categoría actualizada correctamente"})
+    else:
+      return Response({"error": "El campo 'name' es obligatorio"}, status=400)
+
+  except ObjectDoesNotExist:
+    return Response({"error": "Categoría no encontrada"}, status=404)
+  except Exception as e:
+    return Response({"error": str(e)}, status=500)
+
+# Eliminar una ubicación
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_category(request, pk):
+  try:
+    category = Category.objects.get(pk=pk)
+    category.delete()
+    return Response({"message": "Categoría eliminada correctamente"})
+  except ObjectDoesNotExist:
+    return Response({"error": "Categoría no encontrada"}, status=404)
   except Exception as e:
     return Response({"error": str(e)}, status=500)
