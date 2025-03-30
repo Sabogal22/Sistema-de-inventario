@@ -2,6 +2,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from api.models import Notification, User
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ObjectDoesNotExist
+import json
+from django.contrib.auth.hashers import make_password
+from django.db.models import Q
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -67,3 +74,80 @@ def get_all_users(request):
   users = list(User.objects.all().values("id", "username", "email", "role"))
   print(users)  # 🔍 Verifica si la consulta devuelve datos
   return Response(users)
+
+# ✅ Crear un nuevo usuario
+@csrf_exempt
+def create_user(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+
+            # Validación de datos
+            if not data.get("username") or not data.get("email") or not data.get("password") or not data.get("role"):
+                return JsonResponse({"error": "Faltan datos obligatorios"}, status=400)
+
+            # Crear el usuario con el rol
+            user = User.objects.create(
+                username=data["username"],
+                email=data["email"],
+                first_name=data.get("first_name", ""),
+                last_name=data.get("last_name", ""),
+                password=make_password(data["password"]),  # Hashear la contraseña
+                role=data["role"]  # Asignar el rol correctamente
+            )
+            return JsonResponse({"message": "Usuario creado exitosamente", "id": user.id}, status=201)
+        
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Datos inválidos"}, status=400)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+# ✅ Editar un usuario existente
+@csrf_exempt
+def update_user(request, pk):
+    if request.method == "PUT":
+        try:
+            data = json.loads(request.body)
+            user = User.objects.get(pk=pk)
+
+            # Actualizar solo los campos que se envían
+            if "username" in data:
+                user.username = data["username"]
+            if "email" in data:
+                user.email = data["email"]
+            if "first_name" in data:
+                user.first_name = data["first_name"]
+            if "last_name" in data:
+                user.last_name = data["last_name"]
+            if "password" in data:
+                user.password = make_password(data["password"])  # Hashear la nueva contraseña
+            if "role" in data:  # <-- Agregar esta validación para actualizar el rol
+                user.role = data["role"]
+
+            user.save()
+            return JsonResponse({"message": "Usuario actualizado correctamente"}, status=200)
+        
+        except ObjectDoesNotExist:
+            return JsonResponse({"error": "Usuario no encontrado"}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Datos inválidos"}, status=400)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user(request, pk):
+    try:
+        user = User.objects.get(pk=pk)
+        
+        # Verificar permisos (opcional: que solo admins puedan eliminar)
+        if request.user.role != 'admin':
+            return Response({"error": "No tienes permisos para esta acción"}, status=403)
+            
+        user.delete()
+        return Response({"message": "Usuario eliminado correctamente"})
+        
+    except ObjectDoesNotExist:
+        return Response({"error": "Usuario no encontrado"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

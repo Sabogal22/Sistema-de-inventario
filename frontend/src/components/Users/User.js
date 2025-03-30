@@ -1,26 +1,97 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import UserList from "./UserList";
+import UserModal from "./UserModal";
+import { Button } from "react-bootstrap";
+import Swal from "sweetalert2";
 
 const User = () => {
-  const [users, setUsers] = useState([]); // Cambiar a una lista
+  const [users, setUsers] = useState([]); // Lista de usuarios
+  const [modalShow, setModalShow] = useState(false); // Estado del modal
+  const [selectedUser, setSelectedUser] = useState(null); // Usuario seleccionado para editar
   const token = localStorage.getItem("access_token");
 
+  // Definir fetchUsers fuera del useEffect
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get("http://127.0.0.1:8000/users/all/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Error al obtener usuarios:", error);
+    }
+  };
+
+  // Llamar a fetchUsers cuando cambie el token
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await axios.get("http://127.0.0.1:8000/users/all/", {
+    if (token) fetchUsers();
+  }, [token]);
+
+  // Abrir modal para agregar usuario
+  const handleAddUser = () => {
+    setSelectedUser(null);
+    setModalShow(true);
+  };
+
+  // Abrir modal para editar usuario
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setModalShow(true);
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      const response = await axios.delete(
+        `http://127.0.0.1:8000/users/delete/${userId}/`, 
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
+      if (response.status === 200) {
+        setUsers(users.filter(user => user.id !== userId));
+        Swal.fire('¡Eliminado!', 'Usuario eliminado correctamente', 'success');
+      }
+    } catch (error) {
+      console.error("Error completo:", error);
+      
+      let errorMessage = 'No se pudo eliminar el usuario';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      Swal.fire('Error', errorMessage, 'error');
+    }
+  };
+
+  // Guardar usuario (crear o actualizar)
+  const handleSaveUser = async (userData) => {
+    if (!userData) {
+      console.error("Error: userData es undefined.");
+      return;
+    }
+  
+    try {
+      if (userData.id) {
+        await axios.put(`http://127.0.0.1:8000/users/${userData.id}/`, userData, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setUsers(response.data); // Guardar la lista de usuarios
-      } catch (error) {
-        console.error("Error al obtener usuarios:", error);
+      } else {
+        await axios.post("http://127.0.0.1:8000/users/create/", userData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
-    };
-
-    if (token) {
-      fetchUsers();
+  
+      setModalShow(false);
+      fetchUsers(); // ✅ Refresca la lista
+    } catch (error) {
+      console.error("Error al guardar usuario:", error);
     }
-  }, [token]);
+  };  
 
   return (
     <div className="container mt-4">
@@ -29,48 +100,25 @@ const User = () => {
           <h2 className="text-primary">
             <i className="fa-solid fa-users me-2"></i> Lista de Usuarios
           </h2>
-          <button className="btn btn-success">
-            <i className="fa-solid fa-user-plus me-2"></i> Agregar Usuario
-          </button>
+          <Button variant="success" onClick={handleAddUser}>
+            <i className="fa-solid fa-plus me-2"></i> Agregar Usuario
+          </Button>
         </div>
 
-        <table className="table table-hover">
-          <thead className="table-dark">
-            <tr>
-              <th>ID</th>
-              <th>Nombre de Usuario</th>
-              <th>Correo Electrónico</th>
-              <th>Rol</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.length > 0 ? (
-              users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.id}</td>
-                  <td>{user.username}</td>
-                  <td>{user.email}</td>
-                  <td>{user.role || "N/A"}</td>
-                  <td>
-                    <button className="btn btn-warning btn-sm me-2">
-                      <i className="fa-solid fa-edit"></i> Editar
-                    </button>
-                    <button className="btn btn-danger btn-sm">
-                      <i className="fa-solid fa-trash"></i> Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="text-center">
-                  Cargando usuarios...
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {/* Lista de usuarios */}
+        <UserList 
+          users={users} 
+          onEditUser={handleEditUser} 
+          onDeleteUser={handleDeleteUser}
+        />
+
+        {/* Modal para agregar/editar usuario */}
+        <UserModal
+          show={modalShow}
+          handleClose={() => setModalShow(false)}
+          user={selectedUser}
+          onUserSaved={handleSaveUser}
+        />
       </div>
     </div>
   );
