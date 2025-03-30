@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // Obtener la ruta actual
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
@@ -13,7 +14,6 @@ const Navbar = () => {
 
   const token = localStorage.getItem("access_token");
 
-  // Obtener notificaciones desde la API
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -33,7 +33,6 @@ const Navbar = () => {
     }
   }, [token]);
 
-  // Obtener datos del usuario
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -56,27 +55,22 @@ const Navbar = () => {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  // Marcar todas las notificaciones como leídas
   const markAllAsRead = async () => {
     try {
       await axios.post("http://127.0.0.1:8000/notifications/mark-all/", {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      // Actualizar estado localmente
       setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
       setError("Error al marcar como leídas.");
     }
   };
 
-  // Cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     navigate("/");
   };
 
-  // Cerrar dropdown si se hace clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -87,10 +81,13 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Función para determinar si la ruta está activa
+  const isActive = (path) => location.pathname === path ? "active-link" : "";
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow">
       <div className="container">
-        <Link className="navbar-brand" to="/dashboard">
+        <Link className="navbar-brand fw-bold text-uppercase" to="/dashboard">
           <i className="fa-solid fa-warehouse me-2"></i> Inventario FET
         </Link>
 
@@ -101,41 +98,38 @@ const Navbar = () => {
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto">
             <li className="nav-item">
-              <Link className="nav-link" to="/dashboard">
+              <Link className={`nav-link ${isActive("/dashboard")}`} to="/dashboard">
                 <i className="fa-solid fa-house me-1"></i> Dashboard
               </Link>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/products">
+              <Link className={`nav-link ${isActive("/products")}`} to="/products">
                 <i className="fa-solid fa-boxes me-1"></i> Productos
               </Link>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/category">
+              <Link className={`nav-link ${isActive("/category")}`} to="/category">
                 <i className="fa-solid fa-tags me-1"></i> Categorías
               </Link>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/location">
+              <Link className={`nav-link ${isActive("/location")}`} to="/location">
                 <i className="fa-solid fa-location-dot me-1"></i> Localizaciones
               </Link>
             </li>
 
-            {/* Mostrar "Usuarios" solo si el usuario es admin */}
             {user.role === "admin" && (
               <li className="nav-item">
-                <Link className="nav-link" to="/user">
+                <Link className={`nav-link ${isActive("/user")}`} to="/user">
                   <i className="fa-solid fa-users me-1"></i> Usuarios
                 </Link>
               </li>
             )}
 
-            {/* Mostrar nombre del usuario y su rol */}
             <li className="nav-item text-white ms-3">
-              <span className="nav-link disabled">👤 {user.username} - {user.role}</span>
+              <span className="nav-link disabled fw-bold">👤 {user.username} - {user.role}</span>
             </li>
 
-            {/* Notificaciones */}
             <li className="nav-item dropdown position-relative" ref={notificationRef}>
               <button className="nav-link btn btn-link text-white position-relative" onClick={() => setShowNotifications(!showNotifications)}>
                 <i className="fa-solid fa-bell"></i>
@@ -169,7 +163,6 @@ const Navbar = () => {
               )}
             </li>
 
-            {/* Cerrar sesión */}
             <li className="nav-item">
               <button className="btn btn-danger btn-sm ms-3" onClick={handleLogout}>
                 <i className="fa-solid fa-right-from-bracket me-1"></i> Cerrar Sesión
