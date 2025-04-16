@@ -38,7 +38,16 @@ class Category(models.Model):
 
 # Modelo de Estado
 class Status(models.Model):
-    name = models.CharField(max_length=100)
+    class StatusChoices(models.TextChoices):
+        DISPONIBLE = 'Disponible', 'Disponible'
+        MANTENIMIENTO = 'Mantenimiento', 'Mantenimiento'
+        NO_DISPONIBLE = 'No disponible', 'No disponible'
+
+    name = models.CharField(
+        max_length=100,
+        choices=StatusChoices.choices,
+        default=StatusChoices.DISPONIBLE
+    )
 
     def __str__(self):
         return self.name
