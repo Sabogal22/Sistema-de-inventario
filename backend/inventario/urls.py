@@ -4,7 +4,8 @@ from api.views import (
     get_user, get_all_users, create_user, update_user, delete_user,
     get_all_location, create_location, update_location, delete_location,
     get_notifications, mark_all_as_read, mark_as_read, delete_notification,
-    get_all_category, create_categiory, update_category, delete_category, search_items
+    get_all_category, create_categiory, update_category, delete_category,
+    search_items, dashboard_summary
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -42,4 +43,7 @@ urlpatterns = [
 
     # Busqueda del Item
     path('items/search/', search_items, name='search_items'),
+
+    # Todos los items
+    path('dashboard/summary/', dashboard_summary, name='dashboard-summary'),
 ]

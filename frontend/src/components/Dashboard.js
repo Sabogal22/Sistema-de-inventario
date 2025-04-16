@@ -2,10 +2,32 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const Dashboard = () => {
+  const [summary, setSummary] = useState({
+    total_items: 0,
+    disponibles: 0,
+    mantenimiento: 0,
+    no_disponibles: 0,
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
   const [noResults, setNoResults] = useState(false);
 
+  // Obtener datos del dashboard
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:8000/dashboard/summary/");
+        console.log(response.data); // Aquí ves la respuesta de la API
+        setSummary(response.data); // Asegúrate de tener esta función para actualizar el estado
+      } catch (error) {
+        console.error("Error al obtener el resumen:", error);
+      }
+    };
+  
+    fetchSummary();
+  }, []);
+
+  // Buscar ítems
   useEffect(() => {
     const fetchItems = async () => {
       if (searchTerm.trim() === "") {
@@ -38,14 +60,13 @@ const Dashboard = () => {
       <p className="text-muted">Aquí puedes ver el estado del inventario de la Fundación Escuela Tecnológica.</p>
 
       <div className="row mt-4">
-        {/* Tarjetas resumen */}
         <div className="col-md-3">
           <div className="card text-white bg-primary mb-3 shadow">
             <div className="card-body text-center">
               <h5 className="card-title">
                 <i className="fa-solid fa-box me-2"></i>Total Ítems
               </h5>
-              <p className="fs-3 fw-bold">320</p>
+              <p className="fs-3 fw-bold">{summary.total_items}</p>
             </div>
           </div>
         </div>
@@ -55,7 +76,7 @@ const Dashboard = () => {
               <h5 className="card-title">
                 <i className="fa-solid fa-hand-holding-box me-2"></i>Disponibles
               </h5>
-              <p className="fs-3 fw-bold">215</p>
+              <p className="fs-3 fw-bold">{summary.Disponible}</p>
             </div>
           </div>
         </div>
@@ -65,7 +86,7 @@ const Dashboard = () => {
               <h5 className="card-title">
                 <i className="fa-solid fa-tools me-2"></i>En Mantenimiento
               </h5>
-              <p className="fs-3 fw-bold">25</p>
+              <p className="fs-3 fw-bold">{summary.Mantenimiento}</p>
             </div>
           </div>
         </div>
@@ -75,7 +96,7 @@ const Dashboard = () => {
               <h5 className="card-title">
                 <i className="fa-solid fa-ban me-2"></i>No Disponibles
               </h5>
-              <p className="fs-3 fw-bold">80</p>
+              <p className="fs-3 fw-bold">{summary.no_disponibles}</p>
             </div>
           </div>
         </div>

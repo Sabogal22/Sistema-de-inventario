@@ -279,3 +279,17 @@ def search_items(request):
   ]
 
   return JsonResponse(data, safe=False)
+
+@api_view(['GET'])
+def dashboard_summary(request):
+  total = Item.objects.count()
+  Disponible = Item.objects.filter(status__name__iexact="Disponible").count()
+  Mantenimiento = Item.objects.filter(status__name__iexact="Mantenimiento").count()
+  no_disponibles = Item.objects.filter(status__name__iexact="No disponible").count()
+
+  return Response({
+    "total_items": total,
+    "Disponible": Disponible,
+    "Mantenimiento": Mantenimiento,
+    "no_disponibles": no_disponibles
+  })
