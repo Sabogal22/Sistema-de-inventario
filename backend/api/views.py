@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from api.models import Notification, User, Location, Category
+from api.models import Notification, User, Location, Category, Item
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
@@ -260,3 +260,22 @@ def delete_category(request, pk):
     return Response({"error": "Categoría no encontrada"}, status=404)
   except Exception as e:
     return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+def search_items(request):
+  term = request.GET.get('q', '')
+  items = Item.objects.filter(Q(name__icontains=term) | Q(description__icontains=term))
+
+  data = [
+    {
+      "id": item.id,
+      "name": item.name,
+      "description": item.description,
+      "location": item.location.name,
+      "category": item.category.name,
+      "status": item.status.name,
+    }
+    for item in items
+  ]
+
+  return JsonResponse(data, safe=False)

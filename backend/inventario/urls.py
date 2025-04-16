@@ -4,7 +4,7 @@ from api.views import (
     get_user, get_all_users, create_user, update_user, delete_user,
     get_all_location, create_location, update_location, delete_location,
     get_notifications, mark_all_as_read, mark_as_read, delete_notification,
-    get_all_category, create_categiory, update_category, delete_category
+    get_all_category, create_categiory, update_category, delete_category, search_items
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -39,4 +39,7 @@ urlpatterns = [
     path('notifications/mark-all/', mark_all_as_read, name='mark_all_as_read'),
     path('notifications/mark/<int:notif_id>/', mark_as_read, name='mark_as_read'),
     path('notifications/delete/<int:notif_id>/', delete_notification, name='delete_notification'),
+
+    # Busqueda del Item
+    path('items/search/', search_items, name='search_items'),
 ]
