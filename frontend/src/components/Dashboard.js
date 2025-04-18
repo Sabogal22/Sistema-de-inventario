@@ -17,8 +17,7 @@ const Dashboard = () => {
     const fetchSummary = async () => {
       try {
         const response = await axios.get("http://127.0.0.1:8000/dashboard/summary/");
-        console.log(response.data); // Aquí ves la respuesta de la API
-        setSummary(response.data); // Asegúrate de tener esta función para actualizar el estado
+        setSummary(response.data);
       } catch (error) {
         console.error("Error al obtener el resumen:", error);
       }
