@@ -15,5 +15,5 @@ __pycache__/
 # Ignorar archivos de configuración sensibles
 .env
 
-# Ignorar node_modules (para proyectos con Node.js o React)
+# Ignorar node_modules
 node_modules/
