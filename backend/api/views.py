@@ -261,6 +261,7 @@ def delete_category(request, pk):
   except Exception as e:
     return Response({"error": str(e)}, status=500)
 
+# Buscar items por nombre o descripción
 @csrf_exempt
 def search_items(request):
   term = request.GET.get('q', '')
@@ -280,6 +281,7 @@ def search_items(request):
 
   return JsonResponse(data, safe=False)
 
+# Tarjetas del dashboard
 @api_view(['GET'])
 def dashboard_summary(request):
   total = Item.objects.count()
@@ -293,3 +295,23 @@ def dashboard_summary(request):
     "Mantenimiento": Mantenimiento,
     "no_disponibles": no_disponibles
   })
+
+# Obtener todos los items
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_item(request):
+  items = Item.objects.select_related('category', 'location', 'status').all()
+  data = []
+
+  for item in items:
+    data.append({
+      'id': item.id,
+      'name': item.name,
+      'description': item.description,
+      'category': item.category.name,
+      'location': item.location.name,
+      'status': item.status.name,
+      'qrCode': item.qr_code,
+    })
+
+  return JsonResponse(data, safe=False)

@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib import admin
 from api.views import (
-    get_user, get_all_users, create_user, update_user, delete_user,
+    get_all_item, get_user, get_all_users, create_user, update_user, delete_user,
     get_all_location, create_location, update_location, delete_location,
     get_notifications, mark_all_as_read, mark_as_read, delete_notification,
     get_all_category, create_categiory, update_category, delete_category,
@@ -46,4 +46,7 @@ urlpatterns = [
 
     # Todos los items
     path('dashboard/summary/', dashboard_summary, name='dashboard-summary'),
+
+    # Item
+    path('items/all/', get_all_item, name='get_all_items'),
 ]

@@ -1,13 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 const Products = () => {
-  const productos = [
-    { id: 1, name: "Laptop HP", description: "Laptop HP con Intel i7.", category: "Electrónica", location: "Almacén A1", status: "Disponible", qrCode: "QR123456" },
-    { id: 2, name: "Mouse Logitech", description: "Mouse inalámbrico.", category: "Periféricos", location: "Almacén B3", status: "Agotado", qrCode: "QR789012" },
-    { id: 3, name: "Teclado Mecánico", description: "Teclado con switches rojos.", category: "Periféricos", location: "Almacén C2", status: "Disponible", qrCode: "QR345678" },
-    { id: 4, name: "Monitor Samsung 24'", description: "Monitor Full HD 75Hz.", category: "Monitores", location: "Almacén D5", status: "Disponible", qrCode: "QR901234" },
-    { id: 5, name: "Disco SSD 1TB", description: "Unidad NVMe 1TB.", category: "Almacenamiento", location: "Almacén E4", status: "Disponible", qrCode: "QR567890" },
-  ];
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem("access_token");
+
+  useEffect(() => {
+    const obtenerProductos = async () => {
+      try {
+        const response = await axios.get('http://127.0.0.1:8000/items/all/', {
+          headers: { Authorization: `Bearer ${token}`},
+        });
+        setProductos(response.data.sort((a, b) => a.name.localeCompare(b.name)));
+      } catch (error) {
+        console.error('Error al obtener productos:', error);
+        setProductos([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    obtenerProductos();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-4">
@@ -26,45 +51,75 @@ const Products = () => {
           </div>
         </div>
 
-        <table className="table table-hover">
-          <thead className="table-dark">
-            <tr>
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Descripción</th>
-              <th>Categoría</th>
-              <th>Ubicación</th>
-              <th>Estado</th>
-              <th>QR Code</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productos.map((producto) => (
-              <tr key={producto.id}>
-                <td>{producto.id}</td>
-                <td>{producto.name}</td>
-                <td>{producto.description}</td>
-                <td>{producto.category}</td>
-                <td>{producto.location}</td>
-                <td>
-                  <span className={`badge ${producto.status === "Disponible" ? "bg-success" : "bg-danger"}`}>
-                    {producto.status}
-                  </span>
-                </td>
-                <td>{producto.qrCode}</td>
-                <td>
-                  <button className="btn btn-warning btn-sm me-2">
-                    <i className="fa-solid fa-edit"></i>
-                  </button>
-                  <button className="btn btn-danger btn-sm">
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
-                </td>
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead className="table-dark">
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th>Imagen</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
+                <th>QR Code</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {Array.isArray(productos) && productos.length > 0 ? (
+                productos.map((producto) => (
+                  <tr key={producto.id}>
+                    <td>{producto.id}</td>
+                    <td>{producto.name}</td>
+                    <td>{producto.category}</td>
+                    <td>
+                      {producto.image ? (
+                        <img 
+                          src={producto.image} 
+                          alt={`Imagen de ${producto.name}`} 
+                          style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "0.5rem" }} 
+                        />
+                      ) : (
+                        <span className="text-muted">Sin imagen</span>
+                      )}
+                    </td>
+                    <td>{producto.category}</td>
+                    <td>{producto.location}</td>
+                    <td>
+                    <span
+                      className={`badge text-uppercase d-flex align-items-center gap-1
+                        ${producto.status === "Disponible" ? "bg-success" : 
+                          producto.status === "Mantenimiento" ? "bg-warning text-dark" : 
+                          "bg-danger"}`}
+                    >
+                      <i className={`fa-solid ${
+                        producto.status === "Disponible" ? "fa-check-circle" : 
+                        producto.status === "Mantenimiento" ? "fa-wrench" : 
+                        "fa-times-circle"
+                      }`}></i>
+                      {producto.status}
+                    </span>
+                    </td>
+                    <td>{producto.qrCode}</td>
+                    <td>
+                    <button className="btn btn-warning btn-sm me-2" title="Editar">
+                      <i className="fa-solid fa-edit"></i>
+                    </button>
+                    <button className="btn btn-danger btn-sm" title="Eliminar">
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="text-center">No hay productos disponibles</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
