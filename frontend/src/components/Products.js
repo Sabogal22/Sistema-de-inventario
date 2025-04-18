@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const Products = () => {
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const token = localStorage.getItem("access_token");
-
+  
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+
     const obtenerProductos = async () => {
       try {
         const response = await axios.get('http://127.0.0.1:8000/items/all/', {
@@ -23,6 +26,26 @@ const Products = () => {
 
     obtenerProductos();
   }, []);
+
+  const exportarAExcel = () => {
+    const worksheetData = productos.map(producto => ({
+      ID: producto.id,
+      Nombre: producto.name,
+      Descripción: producto.description,
+      Categoría: producto.category,
+      Ubicación: producto.location,
+      Estado: producto.status,
+      QR: producto.qrCode
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
+    
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const fileData = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(fileData, "productos.xlsx");
+  };
 
   if (loading) {
     return (
@@ -42,7 +65,7 @@ const Products = () => {
             <i className="fa-solid fa-box me-2"></i> Lista de Productos
           </h2>
           <div>
-            <button className="btn btn-success me-2">
+            <button className="btn btn-success me-2" onClick={exportarAExcel}>
               <i className="fa-solid fa-file-excel me-2"></i> Exportar a Excel
             </button>
             <button className="btn btn-secondary">
