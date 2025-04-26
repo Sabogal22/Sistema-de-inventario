@@ -2,78 +2,103 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import UserList from "./UserList";
 import UserModal from "./UserModal";
-import { Button } from "react-bootstrap";
+import { Button, Card, Container, Spinner } from "react-bootstrap";
 import Swal from "sweetalert2";
 
 const User = () => {
-  const [users, setUsers] = useState([]); // Lista de usuarios
-  const [modalShow, setModalShow] = useState(false); // Estado del modal
-  const [selectedUser, setSelectedUser] = useState(null); // Usuario seleccionado para editar
+  const [users, setUsers] = useState([]);
+  const [modalShow, setModalShow] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [loading, setLoading] = useState(false);
   const token = localStorage.getItem("access_token");
 
-  // Definir fetchUsers fuera del useEffect
   const fetchUsers = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await axios.get("http://127.0.0.1:8000/users/all/", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(response.data);
     } catch (error) {
       console.error("Error al obtener usuarios:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudieron cargar los usuarios",
+        confirmButtonColor: "#198754"
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [token]); // `useCallback` memoriza la función y solo cambia cuando `token` cambia
-  
+  }, [token]);
+
   useEffect(() => {
     if (token) fetchUsers();
-  }, [token, fetchUsers]); 
+  }, [token, fetchUsers]);
 
-  // Abrir modal para agregar usuario
   const handleAddUser = () => {
     setSelectedUser(null);
     setModalShow(true);
   };
 
-  // Abrir modal para editar usuario
   const handleEditUser = (user) => {
     setSelectedUser(user);
     setModalShow(true);
   };
 
   const handleDeleteUser = async (userId) => {
-    try {
-      const response = await axios.delete(
-        `http://127.0.0.1:8000/users/delete/${userId}/`, 
-        {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede deshacer",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#198754",
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar"
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(
+          `http://127.0.0.1:8000/users/delete/${userId}/`, 
+          {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
           }
-        }
-      );
-  
-      if (response.status === 200) {
+        );
+    
         setUsers(users.filter(user => user.id !== userId));
-        Swal.fire('¡Eliminado!', 'Usuario eliminado correctamente', 'success');
+        Swal.fire({
+          icon: "success",
+          title: "¡Eliminado!",
+          text: "Usuario eliminado correctamente",
+          confirmButtonColor: "#198754",
+          timer: 2000
+        });
+      } catch (error) {
+        console.error("Error completo:", error);
+        
+        let errorMessage = 'No se pudo eliminar el usuario';
+        if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        }
+        
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: errorMessage,
+          confirmButtonColor: "#198754"
+        });
       }
-    } catch (error) {
-      console.error("Error completo:", error);
-      
-      let errorMessage = 'No se pudo eliminar el usuario';
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      
-      Swal.fire('Error', errorMessage, 'error');
     }
   };
 
-  // Guardar usuario (crear o actualizar)
   const handleSaveUser = async (userData) => {
-    if (!userData) {
-      console.error("Error: userData es undefined.");
-      return;
-    }
-  
+    if (!userData) return;
+
     try {
       if (userData.id) {
         await axios.put(`http://127.0.0.1:8000/users/${userData.id}/`, userData, {
@@ -84,42 +109,71 @@ const User = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-  
+
+      Swal.fire({
+        icon: "success",
+        title: "¡Éxito!",
+        text: `Usuario ${userData.id ? "actualizado" : "creado"} correctamente`,
+        confirmButtonColor: "#198754",
+        timer: 2000
+      });
+
       setModalShow(false);
-      fetchUsers(); // ✅ Refresca la lista
+      fetchUsers();
     } catch (error) {
       console.error("Error al guardar usuario:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "Error al guardar usuario",
+        confirmButtonColor: "#198754"
+      });
     }
-  };  
+  };
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow-lg p-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h2 className="text-primary">
-            <i className="fa-solid fa-users me-2"></i> Lista de Usuarios
-          </h2>
-          <Button variant="success" onClick={handleAddUser}>
-            <i className="fa-solid fa-plus me-2"></i> Agregar Usuario
-          </Button>
-        </div>
+    <Container className="py-4">
+      <Card className="shadow-sm border-0">
+        <Card.Header className="bg-success text-white py-3">
+          <div className="d-flex justify-content-between align-items-center">
+            <h3 className="mb-0">
+              <i className="fas fa-users-cog me-2"></i>
+              Gestión de Usuarios
+            </h3>
+            <Button 
+              variant="light" 
+              onClick={handleAddUser}
+              className="d-flex align-items-center"
+            >
+              <i className="fas fa-user-plus me-2 text-success"></i>
+              Nuevo Usuario
+            </Button>
+          </div>
+        </Card.Header>
 
-        {/* Lista de usuarios */}
-        <UserList 
-          users={users} 
-          onEditUser={handleEditUser} 
-          onDeleteUser={handleDeleteUser}
-        />
+        <Card.Body>
+          {loading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="success" />
+              <p className="mt-2">Cargando usuarios...</p>
+            </div>
+          ) : (
+            <UserList 
+              users={users} 
+              onEditUser={handleEditUser} 
+              onDeleteUser={handleDeleteUser}
+            />
+          )}
+        </Card.Body>
+      </Card>
 
-        {/* Modal para agregar/editar usuario */}
-        <UserModal
-          show={modalShow}
-          handleClose={() => setModalShow(false)}
-          user={selectedUser}
-          onUserSaved={handleSaveUser}
-        />
-      </div>
-    </div>
+      <UserModal
+        show={modalShow}
+        handleClose={() => setModalShow(false)}
+        user={selectedUser}
+        onUserSaved={handleSaveUser}
+      />
+    </Container>
   );
 };
 
