@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [summary, setSummary] = useState({
@@ -11,6 +12,7 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
   const [noResults, setNoResults] = useState(false);
+  const navigate = useNavigate();
 
   // Obtener datos del dashboard
   useEffect(() => {
@@ -114,7 +116,12 @@ const Dashboard = () => {
 
         <ul className="list-group mt-3">
           {results.map((item) => (
-            <li key={item.id} className="list-group-item">
+            <li 
+              key={item.id} 
+              className="list-group-item list-group-item-action"
+              onClick={() => navigate(`/items/${item.id}`)}
+              style={{ cursor: "pointer" }}
+            >
               <strong>{item.name}</strong> – {item.description} ({item.category}, {item.location})
             </li>
           ))}

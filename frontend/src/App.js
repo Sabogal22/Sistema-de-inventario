@@ -7,6 +7,7 @@ import Category from "./components/Category";
 import Location from "./components/Location";
 import PrivateRoute from "./components/PrivateRoute";
 import User from "./components/Users/User";
+import ItemDetail from "./components/Item/ItemDetail";
 
 const App = () => {
   return (
@@ -20,6 +21,7 @@ const App = () => {
           <Route path="/category" element={<Category />} />
           <Route path="/location" element={<Location />} />
           <Route path="/user" element={<User />} />
+          <Route path="/items/:id" element={<ItemDetail />} />
         </Route>
       </Routes>
     </Router>
