@@ -1,132 +1,185 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Button, Form } from "react-bootstrap";
-import axios from "axios";
-import Swal from "sweetalert2";
+import { Modal, Button, Form, Spinner, Alert } from "react-bootstrap";
 
-const UserModal = ({ show, handleClose, user, onUserSaved }) => {
+const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
   const [formData, setFormData] = useState({
-    id: "",
-    username: "",
-    email: "",
-    role: "",
-    password: "",
+    username: '',
+    email: '',
+    role: 'pasante',
+    password: ''
   });
+  const [errors, setErrors] = useState({});
+
+  // Roles disponibles según el modelo Django
+  const availableRoles = [
+    { value: 'pasante', label: 'Pasante' },
+    { value: 'admin', label: 'Administrador' }
+  ];
 
   useEffect(() => {
     if (user) {
-      setFormData({ id: user.id, username: user.username, email: user.email, role: user.role, password: "" });
+      setFormData({
+        username: user.username || '',
+        email: user.email || '',
+        role: user.role || 'pasante',
+        password: ''
+      });
     } else {
-      setFormData({ id: "", username: "", email: "", role: "", password: "" });
+      setFormData({
+        username: '',
+        email: '',
+        role: 'pasante',
+        password: ''
+      });
     }
+    setErrors({});
   }, [user]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
   };
 
-  const handleSave = async () => {
-    console.log("Datos antes de enviar:", formData); // <-- Agregar esto
-  
-    if (!formData.username || !formData.email) {
-      Swal.fire("Error", "Por favor, completa todos los campos.", "error");
-      return;
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.username.trim()) {
+      newErrors.username = 'Nombre de usuario es requerido';
     }
-  
-    if (!formData.id && !formData.password) {
-      Swal.fire("Error", "La contraseña es obligatoria al crear un usuario.", "error");
-      return;
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Correo electrónico es requerido';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Correo electrónico no válido';
     }
-  
-    try {
-      const token = localStorage.getItem("access_token");
-      const headers = { Authorization: `Bearer ${token}` };
-  
-      let requestData = { ...formData };
-      if (formData.id && !formData.password) {
-        delete requestData.password;
-      }
-  
-      let response;
-      if (formData.id) {
-        response = await axios.put(`http://127.0.0.1:8000/users/${formData.id}/`, requestData, { headers });
-      } else {
-        response = await axios.post("http://127.0.0.1:8000/users/create/", requestData, { headers });
-      }
-  
-      console.log("Usuario guardado:", response.data);
-  
-      if (typeof onUserSaved === "function") {
-        await onUserSaved();
-      } else {
-        console.warn("onUserSaved no está definido o no es una función");
-      }
-  
-      Swal.fire({
-        icon: "success",
-        title: "Éxito",
-        text: "Usuario guardado correctamente.",
-        timer: 2000,
-        showConfirmButton: false
-      });
-  
-      handleClose();
-    } catch (error) {
-      console.error("Error al guardar usuario:", error);
-      if (error.response) {
-        Swal.fire("Error", `Error ${error.response.status}: ${JSON.stringify(error.response.data)}`, "error");
-      } else {
-        Swal.fire("Error", "Error al conectar con el servidor.", "error");
-      }
+    
+    if (!['admin', 'pasante'].includes(formData.role)) {
+      newErrors.role = 'Rol no válido';
     }
-  };  
+    
+    if (!user && !formData.password) {
+      newErrors.password = 'Contraseña es requerida para nuevo usuario';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSave(formData);
+    }
+  };
 
   return (
     <Modal show={show} onHide={handleClose} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{formData.id ? "Editar Usuario" : "Agregar Usuario"}</Modal.Title>
+      <Modal.Header closeButton className="bg-success text-white">
+        <Modal.Title>
+          <i className={`fas fa-${user ? 'user-edit' : 'user-plus'} me-2`}></i>
+          {user ? 'Editar Usuario' : 'Crear Usuario'}
+        </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
-        <Form>
+      <form onSubmit={handleSubmit}>
+        <Modal.Body>
+          {Object.keys(errors).length > 0 && (
+            <Alert variant="danger">
+              Por favor corrija los errores en el formulario
+            </Alert>
+          )}
+
           <Form.Group className="mb-3">
             <Form.Label>Nombre de Usuario</Form.Label>
-            <Form.Control type="text" name="username" value={formData.username} onChange={handleChange} required />
+            <Form.Control
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              isInvalid={!!errors.username}
+            />
+            <Form.Control.Feedback type="invalid">
+              {errors.username}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Correo Electrónico</Form.Label>
-            <Form.Control type="email" name="email" value={formData.email} onChange={handleChange} required />
+            <Form.Control
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              isInvalid={!!errors.email}
+            />
+            <Form.Control.Feedback type="invalid">
+              {errors.email}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Contraseña</Form.Label>
+            <Form.Label>Rol</Form.Label>
+            <Form.Select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              isInvalid={!!errors.role}
+            >
+              {availableRoles.map(role => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </Form.Select>
+            <Form.Control.Feedback type="invalid">
+              {errors.role}
+            </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>
+              Contraseña {!user && <span className="text-danger">*</span>}
+            </Form.Label>
             <Form.Control
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder={formData.id ? "(Opcional si no quieres cambiarla)" : "Obligatoria"}
-              required={!formData.id}
+              isInvalid={!!errors.password}
+              placeholder={user ? "Dejar en blanco para no cambiar" : ""}
             />
+            <Form.Control.Feedback type="invalid">
+              {errors.password}
+            </Form.Control.Feedback>
+            {user && (
+              <Form.Text className="text-muted">
+                Solo complete si desea cambiar la contraseña
+              </Form.Text>
+            )}
           </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Rol</Form.Label>
-            <Form.Select name="role" value={formData.role} onChange={handleChange} required>
-              <option value="">Seleccione un rol</option>
-              <option value="admin">Admin</option>
-              <option value="pasante">Pasante</option>
-            </Form.Select>
-          </Form.Group>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
-          Cancelar
-        </Button>
-        <Button variant="primary" onClick={handleSave}>
-          Guardar
-        </Button>
-      </Modal.Footer>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Cancelar
+          </Button>
+          <Button variant="success" type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" /> 
+                Guardando...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-save me-2"></i>
+                Guardar
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </form>
     </Modal>
   );
 };

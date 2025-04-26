@@ -2,149 +2,253 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { 
+  Card, 
+  Table, 
+  Button, 
+  Badge, 
+  Spinner, 
+  Container,
+  InputGroup,
+  FormControl,
+  Alert
+} from 'react-bootstrap';
 
 const Products = () => {
-  const [productos, setProductos] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem("access_token");
 
-    const obtenerProductos = async () => {
+    const fetchProducts = async () => {
       try {
+        setLoading(true);
         const response = await axios.get('http://127.0.0.1:8000/items/all/', {
-          headers: { Authorization: `Bearer ${token}`},
+          headers: { Authorization: `Bearer ${token}` },
         });
-        setProductos(response.data.sort((a, b) => a.name.localeCompare(b.name)));
+        setProducts(response.data.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (error) {
-        console.error('Error al obtener productos:', error);
-        setProductos([]);
+        console.error('Error fetching products:', error);
+        setError('Error al cargar los productos');
+        setProducts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    obtenerProductos();
+    fetchProducts();
   }, []);
 
-  const exportarAExcel = () => {
-    const worksheetData = productos.map(producto => ({
-      ID: producto.id,
-      Nombre: producto.name,
-      Descripción: producto.description,
-      Categoría: producto.category,
-      Ubicación: producto.location,
-      Estado: producto.status,
-      QR: producto.qrCode
-    }));
-    
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
-    
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const fileData = new Blob([excelBuffer], { type: "application/octet-stream" });
-    saveAs(fileData, "productos.xlsx");
+  const exportToExcel = async () => {
+    try {
+      setExporting(true);
+      const worksheetData = products.map(product => ({
+        ID: product.id,
+        Nombre: product.name,
+        Descripción: product.description,
+        Categoría: product.category,
+        Ubicación: product.location,
+        Estado: product.status,
+        'Código QR': product.qrCode,
+        'Fecha Registro': product.created_at
+      }));
+      
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
+      
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const fileData = new Blob([excelBuffer], { type: "application/octet-stream" });
+      saveAs(fileData, `productos_fet_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Error al exportar a Excel');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      Disponible: { color: "success", icon: "fa-check-circle" },
+      Mantenimiento: { color: "warning", icon: "fa-tools", textDark: true },
+      "No disponible": { color: "danger", icon: "fa-times-circle" }
+    };
+
+    const config = statusConfig[status] || { color: "secondary", icon: "fa-question-circle" };
+
+    return (
+      <Badge 
+        bg={config.color} 
+        className={`d-flex align-items-center gap-1 ${config.textDark ? 'text-dark' : ''}`}
+      >
+        <i className={`fas ${config.icon}`}></i>
+        {status}
+      </Badge>
+    );
   };
 
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Cargando...</span>
-        </div>
+        <Spinner animation="border" variant="success" />
       </div>
     );
   }
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow-lg p-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h2 className="text-primary">
-            <i className="fa-solid fa-box me-2"></i> Lista de Productos
-          </h2>
-          <div>
-            <button className="btn btn-success me-2" onClick={exportarAExcel}>
-              <i className="fa-solid fa-file-excel me-2"></i> Exportar a Excel
-            </button>
-            <button className="btn btn-secondary">
-              <i className="fa-solid fa-print me-2"></i> Imprimir Lista
-            </button>
+    <Container className="py-4">
+      <Card className="shadow-sm border-0">
+        <Card.Header className="bg-success text-white py-3">
+          <div className="d-flex justify-content-between align-items-center">
+            <h3 className="mb-0">
+              <i className="fas fa-boxes me-2"></i>
+              Gestión de Productos
+            </h3>
+            <div className="d-flex gap-2">
+              <Button 
+                variant="light" 
+                onClick={exportToExcel}
+                disabled={exporting || products.length === 0}
+              >
+                {exporting ? (
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" />
+                    Exportando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-file-excel me-2 text-success"></i>
+                    Exportar
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
+        </Card.Header>
 
-        <div className="table-responsive">
-          <table className="table table-hover">
-            <thead className="table-dark">
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Descripción</th>
-                <th>Categoría</th>
-                <th>Imagen</th>
-                <th>Ubicación</th>
-                <th>Estado</th>
-                <th>QR Code</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.isArray(productos) && productos.length > 0 ? (
-                productos.map((producto) => (
-                  <tr key={producto.id}>
-                    <td>{producto.id}</td>
-                    <td>{producto.name}</td>
-                    <td>{producto.category}</td>
-                    <td>
-                      {producto.image ? (
-                        <img 
-                          src={producto.image} 
-                          alt={`Imagen de ${producto.name}`} 
-                          style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "0.5rem" }} 
-                        />
+        <Card.Body>
+          <div className="mb-4">
+            <InputGroup>
+              <InputGroup.Text className="bg-light">
+                <i className="fas fa-search"></i>
+              </InputGroup.Text>
+              <FormControl
+                placeholder="Buscar productos por nombre, descripción, categoría o ubicación..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </InputGroup>
+          </div>
+
+          {error && (
+            <Alert variant="danger" className="mb-4">
+              <i className="fas fa-exclamation-triangle me-2"></i>
+              {error}
+            </Alert>
+          )}
+
+          <div className="table-responsive">
+            <Table hover className="align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Producto</th>
+                  <th>Descripción</th>
+                  <th className="text-center">Imagen</th>
+                  <th>Categoría</th>
+                  <th>Ubicación</th>
+                  <th className="text-center">Estado</th>
+                  <th className="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <tr key={product.id}>
+                      <td className="fw-bold">{product.id}</td>
+                      <td>
+                        <div className="d-flex align-items-center">
+                          <i className="fas fa-box text-muted me-2"></i>
+                          {product.name}
+                        </div>
+                      </td>
+                      <td>
+                        <small className="text-muted">
+                          {product.description || 'Sin descripción'}
+                        </small>
+                      </td>
+                      <td className="text-center">
+                        {product.image ? (
+                          <img 
+                            src={product.image} 
+                            alt={product.name}
+                            className="img-thumbnail"
+                            style={{ width: "60px", height: "60px", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <i className="fas fa-image text-muted" title="Sin imagen"></i>
+                        )}
+                      </td>
+                      <td>
+                        <Badge bg="light" text="dark">
+                          <i className="fas fa-tag me-1"></i>
+                          {product.category}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge bg="light" text="dark">
+                          <i className="fas fa-map-marker-alt me-1"></i>
+                          {product.location}
+                        </Badge>
+                      </td>
+                      <td className="text-center">
+                        {getStatusBadge(product.status)}
+                      </td>
+                      <td className="text-center">
+                        <Button variant="outline-warning" size="sm" className="me-2">
+                          <i className="fas fa-edit"></i>
+                        </Button>
+                        <Button variant="outline-danger" size="sm">
+                          <i className="fas fa-trash"></i>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="text-center py-4">
+                      {searchTerm ? (
+                        <Alert variant="info">
+                          <i className="fas fa-info-circle me-2"></i>
+                          No se encontraron productos con ese criterio de búsqueda
+                        </Alert>
                       ) : (
-                        <span className="text-muted">Sin imagen</span>
+                        <Alert variant="warning">
+                          <i className="fas fa-box-open me-2"></i>
+                          No hay productos registrados en el sistema
+                        </Alert>
                       )}
                     </td>
-                    <td>{producto.category}</td>
-                    <td>{producto.location}</td>
-                    <td>
-                    <span
-                      className={`badge text-uppercase d-flex align-items-center gap-1
-                        ${producto.status === "Disponible" ? "bg-success" : 
-                          producto.status === "Mantenimiento" ? "bg-warning text-dark" : 
-                          "bg-danger"}`}
-                    >
-                      <i className={`fa-solid ${
-                        producto.status === "Disponible" ? "fa-check-circle" : 
-                        producto.status === "Mantenimiento" ? "fa-wrench" : 
-                        "fa-times-circle"
-                      }`}></i>
-                      {producto.status}
-                    </span>
-                    </td>
-                    <td>{producto.qrCode}</td>
-                    <td>
-                    <button className="btn btn-warning btn-sm me-2" title="Editar">
-                      <i className="fa-solid fa-edit"></i>
-                    </button>
-                    <button className="btn btn-danger btn-sm" title="Eliminar">
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
-                    </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="text-center">No hay productos disponibles</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+                )}
+              </tbody>
+            </Table>
+          </div>
+        </Card.Body>
+      </Card>
+    </Container>
   );
 };
 

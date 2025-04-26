@@ -7,16 +7,21 @@ const Locations = () => {
   const [newLocation, setNewLocation] = useState("");
   const [editingLocation, setEditingLocation] = useState(null);
   const [editedName, setEditedName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const token = localStorage.getItem("access_token");
 
   const fetchLocations = useCallback(async () => {
     try {
+      setIsLoading(true);
       const response = await axios.get("http://127.0.0.1:8000/location/all/", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setLocations(response.data);
     } catch (error) {
       console.error("Error al obtener ubicaciones:", error);
+      Swal.fire("Error", "No se pudieron cargar las ubicaciones", "error");
+    } finally {
+      setIsLoading(false);
     }
   }, [token]);
 
@@ -26,7 +31,12 @@ const Locations = () => {
 
   const addLocation = async () => {
     if (newLocation.trim() === "") {
-      Swal.fire("Error", "El nombre de la ubicación no puede estar vacío", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Campo requerido",
+        text: "El nombre de la ubicación no puede estar vacío",
+        confirmButtonColor: "#198754"
+      });
       return;
     }
     try {
@@ -37,10 +47,20 @@ const Locations = () => {
       );
       setLocations([...locations, response.data]);
       setNewLocation("");
-      Swal.fire("Éxito", "Ubicación agregada correctamente", "success");
+      Swal.fire({
+        icon: "success",
+        title: "¡Éxito!",
+        text: "Ubicación agregada correctamente",
+        confirmButtonColor: "#198754"
+      });
     } catch (error) {
       console.error("Error al agregar ubicación:", error);
-      Swal.fire("Error", "No se pudo agregar la ubicación", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "No se pudo agregar la ubicación",
+        confirmButtonColor: "#198754"
+      });
     }
   };
 
@@ -56,7 +76,12 @@ const Locations = () => {
 
   const updateLocation = async (id) => {
     if (editedName.trim() === "") {
-      Swal.fire("Error", "El nombre de la ubicación no puede estar vacío", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Campo requerido",
+        text: "El nombre de la ubicación no puede estar vacío",
+        confirmButtonColor: "#198754"
+      });
       return;
     }
     try {
@@ -67,21 +92,31 @@ const Locations = () => {
       );
       setLocations(locations.map(loc => (loc.id === id ? { ...loc, name: editedName } : loc)));
       setEditingLocation(null);
-      Swal.fire("Éxito", "Ubicación actualizada correctamente", "success");
+      Swal.fire({
+        icon: "success",
+        title: "¡Éxito!",
+        text: "Ubicación actualizada correctamente",
+        confirmButtonColor: "#198754"
+      });
     } catch (error) {
       console.error("Error al actualizar ubicación:", error);
-      Swal.fire("Error", "No se pudo actualizar la ubicación", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "No se pudo actualizar la ubicación",
+        confirmButtonColor: "#198754"
+      });
     }
   };
 
   const deleteLocation = async (id) => {
     Swal.fire({
       title: "¿Estás seguro?",
-      text: "Esta acción eliminará la ubicación permanentemente.",
+      text: "Esta acción no se puede deshacer",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      cancelButtonColor: "#198754",
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar",
     }).then(async (result) => {
@@ -91,104 +126,152 @@ const Locations = () => {
             headers: { Authorization: `Bearer ${token}` },
           });
           setLocations(locations.filter(loc => loc.id !== id));
-          Swal.fire("Eliminado", "Ubicación eliminada correctamente", "success");
+          Swal.fire({
+            icon: "success",
+            title: "¡Eliminado!",
+            text: "Ubicación eliminada correctamente",
+            confirmButtonColor: "#198754"
+          });
         } catch (error) {
           console.error("Error al eliminar ubicación:", error);
-          Swal.fire("Error", "No se pudo eliminar la ubicación", "error");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.message || "No se pudo eliminar la ubicación",
+            confirmButtonColor: "#198754"
+          });
         }
       }
     });
   };
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow-lg p-4">
-        <h2 className="text-primary mb-3">
-          <i className="fa-solid fa-map-marker-alt me-2"></i> Lista de Ubicaciones
-        </h2>
-
-        <div className="input-group mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Nueva ubicación"
-            value={newLocation}
-            onChange={(e) => setNewLocation(e.target.value)}
-          />
-          <button className="btn btn-primary" onClick={addLocation}>
-            <i className="fa-solid fa-save me-2"></i>Guardar
-          </button>
+    <div className="container py-4">
+      <div className="card shadow border-0">
+        <div className="card-header bg-success text-white py-3">
+          <h2 className="mb-0 d-flex align-items-center">
+            <i className="fa-solid fa-location-dot me-3"></i>
+            Gestión de Ubicaciones
+          </h2>
         </div>
+        
+        <div className="card-body">
+          {/* Formulario para agregar nueva ubicación */}
+          <div className="row mb-4">
+            <div className="col-md-12">
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Nombre de la nueva ubicación"
+                  value={newLocation}
+                  onChange={(e) => setNewLocation(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addLocation()}
+                />
+                <button 
+                  className="btn btn-success px-4" 
+                  onClick={addLocation}
+                  disabled={!newLocation.trim()}
+                >
+                  <i className="fa-solid fa-plus me-2"></i> Agregar
+                </button>
+              </div>
+            </div>
+          </div>
 
-        <table className="table table-hover">
-          <thead className="table-dark">
-            <tr>
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {locations.length > 0 ? (
-              locations.map((location) => (
-                <tr key={location.id}>
-                  <td>{location.id}</td>
-                  <td>
-                    {editingLocation === location.id ? (
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                      />
-                    ) : (
-                      location.name
-                    )}
-                  </td>
-                  <td>
-                    {editingLocation === location.id ? (
-                      <>
-                        <button
-                          className="btn btn-success btn-sm me-2"
-                          onClick={() => updateLocation(location.id)}
-                        >
-                          <i className="fa-solid fa-check"></i>
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={cancelEditing}
-                        >
-                          <i className="fa-solid fa-times"></i>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="btn btn-warning btn-sm me-2"
-                          onClick={() => startEditing(location)}
-                        >
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => deleteLocation(location.id)}
-                        >
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                      </>
-                    )}
-                  </td>
+          {/* Tabla de ubicaciones */}
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th className="w-25">ID</th>
+                  <th>Nombre</th>
+                  <th className="text-end">Acciones</th>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="3" className="text-center fw-bold text-muted py-3">
-                  No hay ubicaciones disponibles
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="3" className="text-center py-4">
+                      <div className="spinner-border text-success" role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : locations.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" className="text-center py-4 text-muted">
+                      <i className="fa-solid fa-inbox fa-2x mb-3"></i>
+                      <p className="mb-0 fw-bold">No hay ubicaciones registradas</p>
+                    </td>
+                  </tr>
+                ) : (
+                  locations.map((location) => (
+                    <tr key={location.id} className={editingLocation === location.id ? "table-active" : ""}>
+                      <td className="fw-bold">{location.id}</td>
+                      <td>
+                        {editingLocation === location.id ? (
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="d-flex align-items-center">
+                            <i className="fa-solid fa-location-dot text-success me-2"></i>
+                            {location.name}
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-end">
+                        <div className="d-flex justify-content-end">
+                          {editingLocation === location.id ? (
+                            <>
+                              <button
+                                className="btn btn-sm btn-success me-2"
+                                onClick={() => updateLocation(location.id)}
+                                disabled={!editedName.trim() || editedName === location.name}
+                                title="Guardar cambios"
+                              >
+                                <i className="fa-solid fa-check"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                onClick={cancelEditing}
+                                title="Cancelar edición"
+                              >
+                                <i className="fa-solid fa-times"></i>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="btn btn-sm btn-outline-warning me-2"
+                                onClick={() => startEditing(location)}
+                                title="Editar ubicación"
+                              >
+                                <i className="fa-solid fa-pen"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => deleteLocation(location.id)}
+                                title="Eliminar ubicación"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

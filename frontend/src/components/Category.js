@@ -1,4 +1,4 @@
-import React,{ useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
@@ -7,16 +7,26 @@ const Category = () => {
   const [newCategory, setNewCategory] = useState("");
   const [editingCategory, setEditingCategory] = useState(null);
   const [editedName, setEditedName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const token = localStorage.getItem("access_token");
 
   const fetchCategories = useCallback(async () => {
     try {
+      setIsLoading(true);
       const response = await axios.get("http://127.0.0.1:8000/category/all/", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCategories(response.data);
     } catch (error) {
       console.error("Error al obtener categorías:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudieron cargar las categorías",
+        confirmButtonColor: "#198754"
+      });
+    } finally {
+      setIsLoading(false);
     }
   }, [token]);
 
@@ -26,7 +36,12 @@ const Category = () => {
 
   const addCategory = async () => {
     if (newCategory.trim() === "") {
-      Swal.fire("Error", "El nombre de la categoría no puede estar vacío", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Campo requerido",
+        text: "El nombre de la categoría no puede estar vacío",
+        confirmButtonColor: "#198754"
+      });
       return;
     }
     try {
@@ -37,17 +52,27 @@ const Category = () => {
       );
       setCategories([...categories, response.data]);
       setNewCategory("");
-      Swal.fire("Éxito", "Categoría agregada correctamente", "success");
+      Swal.fire({
+        icon: "success",
+        title: "¡Éxito!",
+        text: "Categoría agregada correctamente",
+        confirmButtonColor: "#198754"
+      });
     } catch (error) {
       console.error("Error al agregar categoría:", error);
-      Swal.fire("Error", "No se pudo agregar la categoría", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "No se pudo agregar la categoría",
+        confirmButtonColor: "#198754"
+      });
     }
   };
 
   const startEditing = (category) => {
     setEditingCategory(category.id);
     setEditedName(category.name);
-  }
+  };
 
   const cancelEditing = () => {
     setEditingCategory(null);
@@ -56,7 +81,12 @@ const Category = () => {
 
   const updateCategory = async (id) => {
     if (editedName.trim() === "") {
-      Swal.fire("Error", "El nombre de la categoría no puede estar vacío", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Campo requerido",
+        text: "El nombre de la categoría no puede estar vacío",
+        confirmButtonColor: "#198754"
+      });
       return;
     }
     try {
@@ -65,23 +95,33 @@ const Category = () => {
         { name: editedName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setCategories(categories.map((cat) => (cat.id === id ? { ...cat, name: editedName } : cat)));
+      setCategories(categories.map(cat => (cat.id === id ? { ...cat, name: editedName } : cat)));
       setEditingCategory(null);
-      Swal.fire("Éxito", "Categoría actualizada correctamente", "success");
+      Swal.fire({
+        icon: "success",
+        title: "¡Éxito!",
+        text: "Categoría actualizada correctamente",
+        confirmButtonColor: "#198754"
+      });
     } catch (error) {
       console.error("Error al actualizar categoría:", error);
-      Swal.fire("Error", "No se pudo actualizar la categoría", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "No se pudo actualizar la categoría",
+        confirmButtonColor: "#198754"
+      });
     }
   };
 
   const deleteCategory = async (id) => {
     Swal.fire({
       title: "¿Estás seguro?",
-      text: "Esta acción eliminará la categoría permanentemente.",
+      text: "Esta acción no se puede deshacer",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      cancelButtonColor: "#198754",
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar",
     }).then(async (result) => {
@@ -90,94 +130,156 @@ const Category = () => {
           await axios.delete(`http://127.0.0.1:8000/category/${id}/delete/`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          setCategories(categories.filter((cat) => cat.id !== id));
-          Swal.fire("Éxito", "Categoría eliminada correctamente", "success");
+          setCategories(categories.filter(cat => cat.id !== id));
+          Swal.fire({
+            icon: "success",
+            title: "¡Eliminado!",
+            text: "Categoría eliminada correctamente",
+            confirmButtonColor: "#198754"
+          });
         } catch (error) {
           console.error("Error al eliminar categoría:", error);
-          Swal.fire("Error", "No se pudo eliminar la categoría", "error");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.message || "No se pudo eliminar la categoría",
+            confirmButtonColor: "#198754"
+          });
         }
       }
     });
   };
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow-lg p-4">
-        <h2 className="text-primary mb-3">
-        <i className="fa-solid fa-map-marker-alt me-2"></i> Lista de Categorías
-        </h2>
-
-        <div className="input-group mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Nueva categoría"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-          />
-          <button className="btn btn-primary" onClick={addCategory}>
-            <i className="fa-solid fa-save me-2"></i>Guardar
-          </button>
+    <div className="container py-4">
+      <div className="card shadow border-0">
+        <div className="card-header bg-success text-white py-3">
+          <h2 className="mb-0 d-flex align-items-center">
+            <i className="fa-solid fa-tags me-3"></i>
+            Gestión de Categorías
+          </h2>
         </div>
+        
+        <div className="card-body">
+          {/* Formulario para agregar nueva categoría */}
+          <div className="row mb-4">
+            <div className="col-md-12">
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Nombre de la nueva categoría"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addCategory()}
+                />
+                <button 
+                  className="btn btn-success px-4" 
+                  onClick={addCategory}
+                  disabled={!newCategory.trim()}
+                >
+                  <i className="fa-solid fa-plus me-2"></i> Agregar
+                </button>
+              </div>
+            </div>
+          </div>
 
-        <table className="table table-hover">
-          <thead className="table-dark">
-            <tr>
-              <th scope="col">ID</th>
-              <th scope="col">Nombre</th>
-              <th scope="col">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.length > 0 ? (
-              categories.map((category) => (
-                <tr key={category.id}>
-                  <td>{category.id}</td>
-                  <td>
-                    {editingCategory === category.id ? (
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                      />
-                    ) : (
-                      category.name
-                    )}
-                  </td>
-                  <td>
-                    {editingCategory === category.id ? (
-                      <>
-                        <button className="btn btn-success me-2" onClick={() => updateCategory(category.id)}>
-                          <i className="fa-solid fa-check"></i>
-                        </button>
-                        <button className="btn btn-secondary" onClick={cancelEditing}>
-                          <i className="fa-solid fa-times"></i>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="btn btn-warning me-2" onClick={() => startEditing(category)}>
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="btn btn-danger" onClick={() => deleteCategory(category.id)}>
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                      </>
-                    )}
-                  </td>
+          {/* Tabla de categorías */}
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th className="w-25">ID</th>
+                  <th>Nombre</th>
+                  <th className="text-end">Acciones</th>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="3" className="text-center">No hay categorías disponibles</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="3" className="text-center py-4">
+                      <div className="spinner-border text-success" role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : categories.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" className="text-center py-4 text-muted">
+                      <i className="fa-solid fa-inbox fa-2x mb-3"></i>
+                      <p className="mb-0 fw-bold">No hay categorías registradas</p>
+                    </td>
+                  </tr>
+                ) : (
+                  categories.map((category) => (
+                    <tr key={category.id} className={editingCategory === category.id ? "table-active" : ""}>
+                      <td className="fw-bold">{category.id}</td>
+                      <td>
+                        {editingCategory === category.id ? (
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="d-flex align-items-center">
+                            <i className="fa-solid fa-tag text-success me-2"></i>
+                            {category.name}
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-end">
+                        <div className="d-flex justify-content-end">
+                          {editingCategory === category.id ? (
+                            <>
+                              <button
+                                className="btn btn-sm btn-success me-2"
+                                onClick={() => updateCategory(category.id)}
+                                disabled={!editedName.trim() || editedName === category.name}
+                                title="Guardar cambios"
+                              >
+                                <i className="fa-solid fa-check"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                onClick={cancelEditing}
+                                title="Cancelar edición"
+                              >
+                                <i className="fa-solid fa-times"></i>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="btn btn-sm btn-outline-warning me-2"
+                                onClick={() => startEditing(category)}
+                                title="Editar categoría"
+                              >
+                                <i className="fa-solid fa-pen"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => deleteCategory(category.id)}
+                                title="Eliminar categoría"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default Category;
