@@ -4,7 +4,7 @@ import axios from "axios";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // Obtener la ruta actual
+  const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
@@ -68,7 +68,8 @@ const Navbar = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
-    navigate("/");
+    localStorage.removeItem("refresh_token");
+    navigate("/login");
   };
 
   useEffect(() => {
@@ -81,94 +82,206 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Función para determinar si la ruta está activa
-  const isActive = (path) => location.pathname === path ? "active-link" : "";
+  const isActive = (path) => location.pathname === path ? "active" : "";
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow">
-      <div className="container">
-        <Link className="navbar-brand fw-bold text-uppercase" to="/dashboard">
-          <i className="fa-solid fa-warehouse me-2"></i> Inventario FET
+    <nav className="navbar navbar-expand-lg navbar-dark bg-success shadow-sm" style={{ borderBottom: "3px solid #0d6e3d" }}>
+      <div className="container-fluid">
+        {/* Brand/logo */}
+        <Link className="navbar-brand d-flex align-items-center" to="/dashboard">
+          <div className="bg-white rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style={{ width: "40px", height: "40px" }}>
+            <i className="fa-solid fa-warehouse text-success fs-5"></i>
+          </div>
+          <span className="fw-bold">Inventario FET</span>
         </Link>
 
-        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span className="navbar-toggler-icon"></span>
+        {/* Mobile toggle */}
+        <button 
+          className="navbar-toggler" 
+          type="button" 
+          data-bs-toggle="collapse" 
+          data-bs-target="#navbarContent"
+          aria-controls="navbarContent"
+          aria-expanded="false"
+        >
+          <i className="fa-solid fa-bars"></i>
         </button>
 
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav ms-auto">
+        {/* Navbar content */}
+        <div className="collapse navbar-collapse" id="navbarContent">
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
-              <Link className={`nav-link ${isActive("/dashboard")}`} to="/dashboard">
-                <i className="fa-solid fa-house me-1"></i> Dashboard
+              <Link 
+                className={`nav-link ${isActive("/dashboard")} d-flex align-items-center`} 
+                to="/dashboard"
+              >
+                <i className="fa-solid fa-gauge-high me-2"></i>
+                <span>Dashboard</span>
               </Link>
             </li>
+            
             <li className="nav-item">
-              <Link className={`nav-link ${isActive("/products")}`} to="/products">
-                <i className="fa-solid fa-boxes me-1"></i> Productos
+              <Link 
+                className={`nav-link ${isActive("/products")} d-flex align-items-center`} 
+                to="/products"
+              >
+                <i className="fa-solid fa-boxes-stacked me-2"></i>
+                <span>Productos</span>
               </Link>
             </li>
+            
             <li className="nav-item">
-              <Link className={`nav-link ${isActive("/category")}`} to="/category">
-                <i className="fa-solid fa-tags me-1"></i> Categorías
+              <Link 
+                className={`nav-link ${isActive("/category")} d-flex align-items-center`} 
+                to="/category"
+              >
+                <i className="fa-solid fa-tags me-2"></i>
+                <span>Categorías</span>
               </Link>
             </li>
+            
             <li className="nav-item">
-              <Link className={`nav-link ${isActive("/location")}`} to="/location">
-                <i className="fa-solid fa-location-dot me-1"></i> Localizaciones
+              <Link 
+                className={`nav-link ${isActive("/location")} d-flex align-items-center`} 
+                to="/location"
+              >
+                <i className="fa-solid fa-location-dot me-2"></i>
+                <span>Ubicaciones</span>
               </Link>
             </li>
-
+            
             {user.role === "admin" && (
               <li className="nav-item">
-                <Link className={`nav-link ${isActive("/user")}`} to="/user">
-                  <i className="fa-solid fa-users me-1"></i> Usuarios
+                <Link 
+                  className={`nav-link ${isActive("/user")} d-flex align-items-center`} 
+                  to="/user"
+                >
+                  <i className="fa-solid fa-users-gear me-2"></i>
+                  <span>Usuarios</span>
                 </Link>
               </li>
             )}
+          </ul>
 
-            <li className="nav-item text-white ms-3">
-              <span className="nav-link disabled fw-bold">👤 {user.username} - {user.role}</span>
-            </li>
-
-            <li className="nav-item dropdown position-relative" ref={notificationRef}>
-              <button className="nav-link btn btn-link text-white position-relative" onClick={() => setShowNotifications(!showNotifications)}>
-                <i className="fa-solid fa-bell"></i>
-                {unreadCount > 0 && <span className="badge bg-danger position-absolute top-0 start-100 translate-middle">{unreadCount}</span>}
+          {/* Right side elements */}
+          <div className="d-flex align-items-center">
+            {/* Notifications dropdown */}
+            <div className="dropdown me-3" ref={notificationRef}>
+              <button 
+                className="btn btn-link text-white position-relative p-0" 
+                onClick={() => setShowNotifications(!showNotifications)}
+                aria-label="Notificaciones"
+              >
+                <i className="fa-solid fa-bell fs-5"></i>
+                {unreadCount > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
-
+              
               {showNotifications && (
-                <div className="dropdown-menu d-block position-absolute end-0 top-100 mt-2 shadow-lg bg-white rounded" style={{ minWidth: "250px" }}>
-                  <h6 className="dropdown-header">Notificaciones</h6>
-                  {loading ? (
-                    <div className="dropdown-item text-muted">Cargando...</div>
-                  ) : error ? (
-                    <div className="dropdown-item text-danger">{error}</div>
-                  ) : notifications.length > 0 ? (
-                    <>
-                      {notifications.map((notif) => (
-                        <div key={notif.id} className={`dropdown-item d-flex justify-content-between align-items-center ${notif.is_read ? "text-muted" : ""}`}>
-                          {notif.message}
-                          {!notif.is_read && <span className="badge bg-primary">Nuevo</span>}
-                        </div>
-                      ))}
-                      <div className="dropdown-divider"></div>
-                      <button className="dropdown-item text-primary" onClick={markAllAsRead}>
-                        Marcar todas como leídas
+                <div className="dropdown-menu dropdown-menu-end show shadow" 
+                  style={{ 
+                    width: "350px",
+                    maxHeight: "80vh",
+                    overflowY: "auto",
+                    inset: "0px auto auto 0px",
+                    transform: "translate(-258px, 40px)"
+                  }}
+                >
+                  <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                    <h6 className="mb-0 fw-bold text-success">Notificaciones</h6>
+                    <div>
+                      <button 
+                        className="btn btn-sm btn-outline-success py-0 px-2"
+                        onClick={markAllAsRead}
+                        disabled={unreadCount === 0}
+                        title="Marcar todas como leídas"
+                      >
+                        <i className="fa-solid fa-check-double"></i>
                       </button>
-                    </>
-                  ) : (
-                    <div className="dropdown-item text-muted">Sin notificaciones</div>
-                  )}
+                    </div>
+                  </div>
+                  
+                  <div className="notification-content">
+                    {loading ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-success" role="status">
+                          <span className="visually-hidden">Cargando...</span>
+                        </div>
+                      </div>
+                    ) : error ? (
+                      <div className="alert alert-danger m-2">{error}</div>
+                    ) : notifications.length > 0 ? (
+                      notifications.map((notif) => (
+                        <div 
+                          key={notif.id} 
+                          className={`dropdown-item p-3 border-bottom ${!notif.is_read ? "bg-light" : ""}`}
+                          style={{ whiteSpace: "normal" }}
+                        >
+                          <div className="d-flex justify-content-between align-items-start">
+                            <div className="flex-grow-1">
+                              <p className="mb-1 fw-semibold">{notif.message}</p>
+                              <small className="text-muted d-block">
+                                <i className="fa-regular fa-clock me-1"></i>
+                                {new Date(notif.created_at).toLocaleString()}
+                              </small>
+                            </div>
+                            {!notif.is_read && (
+                              <span className="badge bg-success ms-2">Nuevo</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-muted p-4">
+                        <i className="fa-regular fa-bell-slash fa-2x mb-2"></i>
+                        <p className="mb-0">No hay notificaciones</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            </li>
+            </div>
 
-            <li className="nav-item">
-              <button className="btn btn-danger btn-sm ms-3" onClick={handleLogout}>
-                <i className="fa-solid fa-right-from-bracket me-1"></i> Cerrar Sesión
+            {/* User dropdown */}
+            <div className="dropdown">
+              <button 
+                className="btn btn-link text-white dropdown-toggle d-flex align-items-center" 
+                id="userDropdown"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <div className="bg-white rounded-circle p-1 me-2">
+                  <i className="fa-solid fa-user text-success"></i>
+                </div>
+                <div className="d-flex flex-column text-start">
+                  <span className="fw-bold">{user.username}</span>
+                  <small className="text-white-50">{user.role}</small>
+                </div>
               </button>
-            </li>
-          </ul>
+              
+              <ul className="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                <li>
+                  <Link className="dropdown-item" to="/profile">
+                    <i className="fa-solid fa-user-gear me-2"></i> Mi perfil
+                  </Link>
+                </li>
+                <li>
+                  <Link className="dropdown-item" to="/settings">
+                    <i className="fa-solid fa-gear me-2"></i> Configuración
+                  </Link>
+                </li>
+                <li><hr className="dropdown-divider" /></li>
+                <li>
+                  <button className="dropdown-item text-danger" onClick={handleLogout}>
+                    <i className="fa-solid fa-right-from-bracket me-2"></i> Cerrar sesión
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </nav>
