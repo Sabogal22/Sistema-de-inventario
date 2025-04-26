@@ -79,7 +79,7 @@ const Login = () => {
                                 </label>
                                 <div className="input-group">
                                     <span className="input-group-text bg-light">
-                                        <i className="fas fa-user text-muted"></i>
+                                        <i className="fas fa-user-tie text-muted"></i>
                                     </span>
                                     <input
                                         type="text"
