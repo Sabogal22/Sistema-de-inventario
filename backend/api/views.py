@@ -104,34 +104,44 @@ def create_user(request):
 # Editar un usuario existente
 @csrf_exempt
 def update_user(request, pk):
-  if request.method == "PUT":
-    try:
-      data = json.loads(request.body)
-      user = User.objects.get(pk=pk)
-
-      # Actualizar solo los campos que se envían
-      if "username" in data:
-        user.username = data["username"]
-      if "email" in data:
-        user.email = data["email"]
-      if "first_name" in data:
-        user.first_name = data["first_name"]
-      if "last_name" in data:
-        user.last_name = data["last_name"]
-      if "password" in data:
-        user.password = make_password(data["password"])  # Hashear la nueva contraseña
-      if "role" in data:  # <-- Agregar esta validación para actualizar el rol
-        user.role = data["role"]
-
-      user.save()
-      return JsonResponse({"message": "Usuario actualizado correctamente"}, status=200)
-        
-    except ObjectDoesNotExist:
-      return JsonResponse({"error": "Usuario no encontrado"}, status=404)
-    except json.JSONDecodeError:
-      return JsonResponse({"error": "Datos inválidos"}, status=400)
-
-  return JsonResponse({"error": "Método no permitido"}, status=405)
+    if request.method in ["PUT", "PATCH"]:
+        try:
+            data = json.loads(request.body)
+            user = User.objects.get(pk=pk)
+            
+            # Verificar campos mínimos requeridos
+            if not all(field in data for field in ['username', 'email', 'role']):
+                return JsonResponse({"error": "Faltan datos obligatorios (username, email, role)"}, status=400)
+            
+            # Actualizar campos
+            user.username = data['username']
+            user.email = data['email']
+            user.role = data['role']
+            
+            # Actualizar password solo si se proporciona y no está vacío
+            if 'password' in data and data['password']:
+                user.set_password(data['password'])
+            
+            user.save()
+            
+            return JsonResponse({
+                "message": "Usuario actualizado correctamente",
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "role": user.role
+                }
+            }, status=200)
+            
+        except User.DoesNotExist:
+            return JsonResponse({"error": "Usuario no encontrado"}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Datos inválidos"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])

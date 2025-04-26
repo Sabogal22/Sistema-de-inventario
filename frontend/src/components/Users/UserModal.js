@@ -10,7 +10,6 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
   });
   const [errors, setErrors] = useState({});
 
-  // Roles disponibles según el modelo Django
   const availableRoles = [
     { value: 'pasante', label: 'Pasante' },
     { value: 'admin', label: 'Administrador' }
@@ -22,7 +21,7 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
         username: user.username || '',
         email: user.email || '',
         role: user.role || 'pasante',
-        password: ''
+        password: '' // Siempre vacío para edición
       });
     } else {
       setFormData({
@@ -39,7 +38,6 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -73,7 +71,17 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData);
+      // Envía todos los campos obligatorios siempre
+      const submissionData = {
+        username: formData.username,
+        email: formData.email,
+        role: formData.role,
+        // Envía password solo si es nuevo usuario o si se proporcionó
+        ...(!user ? { password: formData.password } : 
+            formData.password ? { password: formData.password } : {})
+      };
+      console.log("Enviando datos:", submissionData); // Para depuración
+      onSave(submissionData);
     }
   };
 
@@ -94,12 +102,13 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
           )}
 
           <Form.Group className="mb-3">
-            <Form.Label>Nombre de Usuario</Form.Label>
+            <Form.Label>Nombre de Usuario*</Form.Label>
             <Form.Control
               name="username"
               value={formData.username}
               onChange={handleChange}
               isInvalid={!!errors.username}
+              required
             />
             <Form.Control.Feedback type="invalid">
               {errors.username}
@@ -107,13 +116,14 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Correo Electrónico</Form.Label>
+            <Form.Label>Correo Electrónico*</Form.Label>
             <Form.Control
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               isInvalid={!!errors.email}
+              required
             />
             <Form.Control.Feedback type="invalid">
               {errors.email}
@@ -121,12 +131,13 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Rol</Form.Label>
+            <Form.Label>Rol*</Form.Label>
             <Form.Select
               name="role"
               value={formData.role}
               onChange={handleChange}
               isInvalid={!!errors.role}
+              required
             >
               {availableRoles.map(role => (
                 <option key={role.value} value={role.value}>
@@ -150,6 +161,7 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
               onChange={handleChange}
               isInvalid={!!errors.password}
               placeholder={user ? "Dejar en blanco para no cambiar" : ""}
+              required={!user}
             />
             <Form.Control.Feedback type="invalid">
               {errors.password}

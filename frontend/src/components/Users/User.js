@@ -97,19 +97,43 @@ const User = () => {
   };
 
   const handleSaveUser = async (userData) => {
-    if (!userData) return;
-
     try {
-      if (userData.id) {
-        await axios.put(`http://127.0.0.1:8000/users/${userData.id}/`, userData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      setLoading(true);
+      
+      // Datos base obligatorios
+      const payload = {
+        username: userData.username,
+        email: userData.email,
+        role: userData.role
+      };
+  
+      // Lógica diferente para creación vs edición
+      if (!userData.id) {
+        // CREACIÓN - Validar password obligatorio
+        if (!userData.password) {
+          throw new Error("La contraseña es obligatoria para nuevos usuarios");
+        }
+        payload.password = userData.password;
       } else {
-        await axios.post("http://127.0.0.1:8000/users/create/", userData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // EDICIÓN - Password solo si se proporcionó
+        if (userData.password) {
+          payload.password = userData.password;
+        }
       }
-
+  
+      const url = userData.id 
+        ? `http://127.0.0.1:8000/users/${userData.id}/`
+        : "http://127.0.0.1:8000/users/create/";
+  
+      const method = userData.id ? 'patch' : 'post';
+  
+      await axios[method](url, payload, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+  
       Swal.fire({
         icon: "success",
         title: "¡Éxito!",
@@ -117,17 +141,22 @@ const User = () => {
         confirmButtonColor: "#198754",
         timer: 2000
       });
-
+  
       setModalShow(false);
       fetchUsers();
     } catch (error) {
-      console.error("Error al guardar usuario:", error);
+      console.error("Error completo:", error.response?.data || error.message);
+      
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.response?.data?.message || "Error al guardar usuario",
+        text: error.response?.data?.error || 
+              error.message || 
+              "Error al guardar usuario",
         confirmButtonColor: "#198754"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -171,7 +200,8 @@ const User = () => {
         show={modalShow}
         handleClose={() => setModalShow(false)}
         user={selectedUser}
-        onUserSaved={handleSaveUser}
+        onSave={handleSaveUser}
+        isLoading={loading}
       />
     </Container>
   );
