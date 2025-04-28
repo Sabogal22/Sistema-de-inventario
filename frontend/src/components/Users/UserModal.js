@@ -71,19 +71,18 @@ const UserModal = ({ show, handleClose, user, onSave, isLoading }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      // Envía todos los campos obligatorios siempre
       const submissionData = {
+        id: user?.id, // 👈 Agrega esto
         username: formData.username,
         email: formData.email,
         role: formData.role,
-        // Envía password solo si es nuevo usuario o si se proporcionó
-        ...(!user ? { password: formData.password } : 
-            formData.password ? { password: formData.password } : {})
+        // Solo incluir password si se proporciona
+        ...(formData.password ? { password: formData.password } : {})
       };
       console.log("Enviando datos:", submissionData); // Para depuración
       onSave(submissionData);
     }
-  };
+  };  
 
   return (
     <Modal show={show} onHide={handleClose} centered>
