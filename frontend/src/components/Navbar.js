@@ -90,7 +90,11 @@ const Navbar = () => {
         {/* Brand/logo */}
         <Link className="navbar-brand d-flex align-items-center" to="/dashboard">
           <div className="bg-white rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style={{ width: "40px", height: "40px" }}>
-            <i className="fa-solid fa-warehouse text-success fs-5"></i>
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              style={{ width: "40px", height: "40px", objectFit: "contain" }} 
+            />
           </div>
           <span className="fw-bold">Inventario FET</span>
         </Link>
