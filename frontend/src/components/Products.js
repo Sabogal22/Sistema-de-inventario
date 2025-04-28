@@ -118,6 +118,15 @@ const Products = () => {
             </h3>
             <div className="d-flex gap-2">
               <Button 
+                variant="outline-light"
+                className="btn btn-outline-light"
+                onClick={() => console.log('Agregar producto')}
+              >
+                <i className="fas fa-plus me-2"></i>
+                Agregar
+              </Button>
+
+              <Button 
                 variant="light" 
                 onClick={exportToExcel}
                 disabled={exporting || products.length === 0}
