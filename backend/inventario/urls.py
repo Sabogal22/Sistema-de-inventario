@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import (
-    get_all_item, get_user, get_all_users, create_user, item_detail, update_user, delete_user,
+    get_all_item, get_user, get_all_users, create_user, item_detail, send_notification, update_user, delete_user,
     get_all_location, create_location, update_location, delete_location,
     get_notifications, mark_all_as_read, mark_as_read, delete_notification,
     get_all_category, create_categiory, update_category, delete_category,
@@ -42,6 +42,7 @@ urlpatterns = [
     path('notifications/mark-all/', mark_all_as_read, name='mark_all_as_read'),
     path('notifications/mark/<int:notif_id>/', mark_as_read, name='mark_as_read'),
     path('notifications/delete/<int:notif_id>/', delete_notification, name='delete_notification'),
+    path('notifications/send/', send_notification, name='send-notification'),
 
     # Busqueda del Item
     path('items/search/', search_items, name='search_items'),

@@ -14,25 +14,31 @@ const Navbar = () => {
 
   const token = localStorage.getItem("access_token");
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await axios.get("http://127.0.0.1:8000/notifications/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setNotifications(response.data);
-      } catch (err) {
-        setError("Error al cargar las notificaciones.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Función para cargar notificaciones
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get("http://127.0.0.1:8000/notifications/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications(response.data.notifications || response.data); // Compatibilidad con ambas respuestas
+    } catch (err) {
+      setError("Error al cargar las notificaciones.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (token) {
       fetchNotifications();
+      
+      // Opcional: Configurar polling para actualizar notificaciones cada 30 segundos
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
     }
   }, [token]);
 
+  // Cargar datos del usuario
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -53,25 +59,62 @@ const Navbar = () => {
     }
   }, [token]);
 
+  // Contador de no leídas
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  // Marcar todas como leídas
   const markAllAsRead = async () => {
     try {
-      await axios.post("http://127.0.0.1:8000/notifications/mark-all/", {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post(
+        "http://127.0.0.1:8000/notifications/mark-all/", 
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
       setError("Error al marcar como leídas.");
     }
   };
 
+  // Marcar una como leída
+  const markSingleAsRead = async (notifId, e) => {
+    e.stopPropagation(); // Evitar que se cierre el dropdown
+    try {
+      await axios.post(
+        `http://127.0.0.1:8000/notifications/mark/${notifId}/`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNotifications(notifications.map(n => 
+        n.id === notifId ? { ...n, is_read: true } : n
+      ));
+    } catch (err) {
+      setError("Error al marcar la notificación como leída.");
+    }
+  };
+
+  // Eliminar notificación
+  const handleDeleteNotification = async (notifId, e) => {
+    e.stopPropagation(); // Evitar que se cierre el dropdown
+    try {
+      await axios.delete(
+        `http://127.0.0.1:8000/notifications/delete/${notifId}/`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNotifications(notifications.filter(n => n.id !== notifId));
+    } catch (err) {
+      setError("Error al eliminar la notificación.");
+    }
+  };
+
+  // Cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     navigate("/");
   };
 
+  // Cerrar notificaciones al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -82,6 +125,7 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Clase activa para links
   const isActive = (path) => location.pathname === path ? "active" : "";
 
   return (
@@ -173,7 +217,10 @@ const Navbar = () => {
             <div className="dropdown me-3" ref={notificationRef}>
               <button 
                 className="btn btn-link text-white position-relative p-0" 
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  if (!showNotifications) fetchNotifications();
+                }}
                 aria-label="Notificaciones"
               >
                 <i className="fa-solid fa-bell fs-5"></i>
@@ -222,7 +269,13 @@ const Navbar = () => {
                         <div 
                           key={notif.id} 
                           className={`dropdown-item p-3 border-bottom ${!notif.is_read ? "bg-light" : ""}`}
-                          style={{ whiteSpace: "normal" }}
+                          style={{ whiteSpace: "normal", cursor: "pointer" }}
+                          onClick={() => {
+                            if (!notif.is_read) {
+                              markSingleAsRead(notif.id, { preventDefault: () => {} });
+                            }
+                            // Aquí podrías añadir navegación si la notificación tiene un enlace
+                          }}
                         >
                           <div className="d-flex justify-content-between align-items-start">
                             <div className="flex-grow-1">
@@ -232,9 +285,24 @@ const Navbar = () => {
                                 {new Date(notif.created_at).toLocaleString()}
                               </small>
                             </div>
-                            {!notif.is_read && (
-                              <span className="badge bg-success ms-2">Nuevo</span>
-                            )}
+                            <div className="d-flex">
+                              {!notif.is_read && (
+                                <button 
+                                  className="btn btn-sm btn-outline-success me-2"
+                                  onClick={(e) => markSingleAsRead(notif.id, e)}
+                                  title="Marcar como leída"
+                                >
+                                  <i className="fa-solid fa-check"></i>
+                                </button>
+                              )}
+                              <button 
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={(e) => handleDeleteNotification(notif.id, e)}
+                                title="Eliminar notificación"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))

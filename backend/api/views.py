@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import json
 from django.contrib.auth.hashers import make_password
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -22,9 +23,8 @@ def get_user(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notifications(request):
-  user = request.user
-  notifications = Notification.objects.filter(user=user).order_by('-created_at')
-
+  notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    
   notifications_data = [
     {
       "id": notif.id,
@@ -34,38 +34,98 @@ def get_notifications(request):
     }
     for notif in notifications
   ]
-
-  return Response(notifications_data)
+    
+  return Response({"notifications": notifications_data})
 
 # Marcar todas las notificaciones como leídas
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_all_as_read(request):
-  user = request.user
-  Notification.objects.filter(user=user, is_read=False).update(is_read=True)
-  return Response({"message": "Todas las notificaciones han sido marcadas como leídas."})
+  updated = Notification.objects.filter(
+    user=request.user, 
+    is_read=False
+  ).update(is_read=True)
+    
+  return Response({
+    "status": "success",
+    "message": f"Se marcaron {updated} notificaciones como leídas",
+    "updated_count": updated
+  })
 
 # Marcar una notificación específica como leída
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_as_read(request, notif_id):
-  updated = Notification.objects.filter(id=notif_id, user=request.user, is_read=False).update(is_read=True)
+  notification = get_object_or_404(Notification, id=notif_id, user=request.user)
     
-  if updated:
-    return Response({"message": "Notificación marcada como leída."})
-  return Response({"error": "Notificación no encontrada."}, status=404)
+  if not notification.is_read:
+    notification.is_read = True
+    notification.save()
+    return Response({
+      "status": "success",
+      "message": "Notificación marcada como leída",
+      "notification_id": notif_id
+    })
+  return Response({
+    "status": "info",
+    "message": "La notificación ya estaba marcada como leída",
+    "notification_id": notif_id
+  })
 
 # Eliminar una notificación específica
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_notification(request, notif_id):
-  notification = Notification.objects.filter(id=notif_id, user=request.user).first()
+  notification = get_object_or_404(Notification, id=notif_id, user=request.user)
+  notification.delete()
     
-  if notification:
-    notification.delete()
-    return Response({"message": "Notificación eliminada."})
+  return Response({
+    "status": "success",
+    "message": "Notificación eliminada correctamente",
+    "deleted_id": notif_id
+  })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdminUser])  # Solo administradores pueden enviar
+def send_notification(request):
+    try:
+        user_id = request.data.get('user_id')
+        message = request.data.get('message')
+        
+        if not user_id or not message:
+            return Response(
+                {"error": "Se requieren user_id y message"}, 
+                status=400
+            )
+        
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Usuario no encontrado"}, 
+                status=404
+            )
+        
+        notification = Notification.objects.create(
+            user=user,
+            message=message
+        )
+        
+        return Response({
+            "status": "success",
+            "message": "Notificación enviada correctamente",
+            "notification": {
+                "id": notification.id,
+                "message": notification.message,
+                "created_at": notification.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            }
+        })
     
-  return Response({"error": "Notificación no encontrada."}, status=404)
+    except Exception as e:
+        return Response(
+            {"error": str(e)}, 
+            status=500
+        )
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
