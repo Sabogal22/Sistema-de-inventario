@@ -8,6 +8,7 @@ import Location from "./components/Location";
 import PrivateRoute from "./components/PrivateRoute";
 import User from "./components/Users/User";
 import ItemDetail from "./components/Item/ItemDetail";
+import SendNotification from "./components/SendNotification";
 
 const App = () => {
   return (
@@ -22,6 +23,7 @@ const App = () => {
           <Route path="/location" element={<Location />} />
           <Route path="/user" element={<User />} />
           <Route path="/items/:id" element={<ItemDetail />} />
+          <Route path="/send-notification" element={<SendNotification />} />
         </Route>
       </Routes>
     </Router>

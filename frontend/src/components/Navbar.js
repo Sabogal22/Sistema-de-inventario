@@ -14,13 +14,12 @@ const Navbar = () => {
 
   const token = localStorage.getItem("access_token");
 
-  // Función para cargar notificaciones
   const fetchNotifications = async () => {
     try {
       const response = await axios.get("http://127.0.0.1:8000/notifications/", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setNotifications(response.data.notifications || response.data); // Compatibilidad con ambas respuestas
+      setNotifications(response.data.notifications || response.data);
     } catch (err) {
       setError("Error al cargar las notificaciones.");
     } finally {
@@ -31,14 +30,11 @@ const Navbar = () => {
   useEffect(() => {
     if (token) {
       fetchNotifications();
-      
-      // Opcional: Configurar polling para actualizar notificaciones cada 30 segundos
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
   }, [token]);
 
-  // Cargar datos del usuario
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -59,10 +55,8 @@ const Navbar = () => {
     }
   }, [token]);
 
-  // Contador de no leídas
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  // Marcar todas como leídas
   const markAllAsRead = async () => {
     try {
       await axios.post(
@@ -76,9 +70,12 @@ const Navbar = () => {
     }
   };
 
-  // Marcar una como leída
   const markSingleAsRead = async (notifId, e) => {
-    e.stopPropagation(); // Evitar que se cierre el dropdown
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
     try {
       await axios.post(
         `http://127.0.0.1:8000/notifications/mark/${notifId}/`,
@@ -93,9 +90,10 @@ const Navbar = () => {
     }
   };
 
-  // Eliminar notificación
   const handleDeleteNotification = async (notifId, e) => {
-    e.stopPropagation(); // Evitar que se cierre el dropdown
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
     try {
       await axios.delete(
         `http://127.0.0.1:8000/notifications/delete/${notifId}/`,
@@ -107,14 +105,12 @@ const Navbar = () => {
     }
   };
 
-  // Cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     navigate("/");
   };
 
-  // Cerrar notificaciones al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -125,13 +121,11 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Clase activa para links
   const isActive = (path) => location.pathname === path ? "active" : "";
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-success shadow-sm" style={{ borderBottom: "3px solid #0d6e3d" }}>
       <div className="container-fluid">
-        {/* Brand/logo */}
         <Link className="navbar-brand d-flex align-items-center" to="/dashboard">
           <div className="bg-white rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style={{ width: "40px", height: "40px" }}>
             <img 
@@ -143,7 +137,6 @@ const Navbar = () => {
           <span className="fw-bold">Inventario FET</span>
         </Link>
 
-        {/* Mobile toggle */}
         <button 
           className="navbar-toggler" 
           type="button" 
@@ -155,7 +148,6 @@ const Navbar = () => {
           <i className="fa-solid fa-bars"></i>
         </button>
 
-        {/* Navbar content */}
         <div className="collapse navbar-collapse" id="navbarContent">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
@@ -211,10 +203,9 @@ const Navbar = () => {
             )}
           </ul>
 
-          {/* Right side elements */}
           <div className="d-flex align-items-center">
-            {/* Notifications dropdown */}
-            <div className="dropdown me-3" ref={notificationRef}>
+            {/* Notificaciones mejoradas */}
+            <div className="dropdown me-3 position-static" ref={notificationRef}>
               <button 
                 className="btn btn-link text-white position-relative p-0" 
                 onClick={() => {
@@ -222,8 +213,12 @@ const Navbar = () => {
                   if (!showNotifications) fetchNotifications();
                 }}
                 aria-label="Notificaciones"
+                style={{
+                  transition: "all 0.3s ease",
+                  transform: unreadCount > 0 ? "scale(1.1)" : "scale(1)"
+                }}
               >
-                <i className="fa-solid fa-bell fs-5"></i>
+                <i className={`fa-solid fa-bell fs-5 ${unreadCount > 0 ? "text-warning" : ""}`}></i>
                 {unreadCount > 0 && (
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {unreadCount}
@@ -231,65 +226,77 @@ const Navbar = () => {
                 )}
               </button>
               
-              {showNotifications && (
-                <div className="dropdown-menu dropdown-menu-end show shadow" 
-                  style={{ 
-                    width: "350px",
-                    maxHeight: "80vh",
-                    overflowY: "auto",
-                    inset: "0px auto auto 0px",
-                    transform: "translate(-258px, 40px)"
-                  }}
-                >
-                  <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
-                    <h6 className="mb-0 fw-bold text-success">Notificaciones</h6>
-                    <div>
-                      <button 
-                        className="btn btn-sm btn-outline-success py-0 px-2"
-                        onClick={markAllAsRead}
-                        disabled={unreadCount === 0}
-                        title="Marcar todas como leídas"
-                      >
-                        <i className="fa-solid fa-check-double"></i>
-                      </button>
+              <div 
+                className={`dropdown-menu dropdown-menu-end p-0 shadow-lg ${showNotifications ? 'show' : ''}`}
+                style={{
+                  width: "350px",
+                  maxHeight: "70vh",
+                  overflowY: "auto",
+                  position: "absolute",
+                  right: "0",
+                  left: "auto",
+                  marginTop: "5px",
+                  border: "none",
+                  borderRadius: "10px",
+                  borderTop: "3px solid #28a745"
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="fa-solid fa-bell me-2 text-success"></i>
+                    Notificaciones
+                  </h6>
+                  <button 
+                    className="btn btn-sm btn-outline-success"
+                    onClick={markAllAsRead}
+                    disabled={unreadCount === 0}
+                  >
+                    <i className="fa-solid fa-check-double me-1"></i>
+                    Marcar todas
+                  </button>
+                </div>
+                
+                <div className="notification-content">
+                  {loading ? (
+                    <div className="text-center py-4">
+                      <div className="spinner-border text-success" role="status"></div>
+                      <p className="mt-2 text-muted">Cargando notificaciones...</p>
                     </div>
-                  </div>
-                  
-                  <div className="notification-content">
-                    {loading ? (
-                      <div className="text-center py-4">
-                        <div className="spinner-border text-success" role="status">
-                          <span className="visually-hidden">Cargando...</span>
-                        </div>
-                      </div>
-                    ) : error ? (
-                      <div className="alert alert-danger m-2">{error}</div>
-                    ) : notifications.length > 0 ? (
-                      notifications.map((notif) => (
-                        <div 
-                          key={notif.id} 
-                          className={`dropdown-item p-3 border-bottom ${!notif.is_read ? "bg-light" : ""}`}
-                          style={{ whiteSpace: "normal", cursor: "pointer" }}
-                          onClick={() => {
-                            if (!notif.is_read) {
-                              markSingleAsRead(notif.id, { preventDefault: () => {} });
-                            }
-                            // Aquí podrías añadir navegación si la notificación tiene un enlace
-                          }}
-                        >
-                          <div className="d-flex justify-content-between align-items-start">
-                            <div className="flex-grow-1">
-                              <p className="mb-1 fw-semibold">{notif.message}</p>
-                              <small className="text-muted d-block">
-                                <i className="fa-regular fa-clock me-1"></i>
-                                {new Date(notif.created_at).toLocaleString()}
-                              </small>
-                            </div>
-                            <div className="d-flex">
+                  ) : error ? (
+                    <div className="alert alert-danger m-3">{error}</div>
+                  ) : notifications.length > 0 ? (
+                    notifications.map((notif) => (
+                      <div 
+                        key={notif.id} 
+                        className={`dropdown-item p-3 ${!notif.is_read ? "bg-light" : ""}`}
+                        style={{
+                          borderLeft: !notif.is_read ? "4px solid #28a745" : "none",
+                          cursor: "pointer",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word"
+                        }}
+                        onClick={(e) => {
+                          if (!notif.is_read) {
+                            markSingleAsRead(notif.id, e);
+                          }
+                        }}
+                      >
+                        <div className="d-flex flex-column">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <p className="mb-0" style={{
+                              color: !notif.is_read ? "#212529" : "#6c757d",
+                              fontWeight: !notif.is_read ? "500" : "normal"
+                            }}>
+                              {notif.message}
+                            </p>
+                            <div className="d-flex gap-1 ms-2">
                               {!notif.is_read && (
                                 <button 
-                                  className="btn btn-sm btn-outline-success me-2"
-                                  onClick={(e) => markSingleAsRead(notif.id, e)}
+                                  className="btn btn-sm btn-outline-success"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markSingleAsRead(notif.id, e);
+                                  }}
                                   title="Marcar como leída"
                                 >
                                   <i className="fa-solid fa-check"></i>
@@ -297,24 +304,38 @@ const Navbar = () => {
                               )}
                               <button 
                                 className="btn btn-sm btn-outline-danger"
-                                onClick={(e) => handleDeleteNotification(notif.id, e)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteNotification(notif.id, e);
+                                }}
                                 title="Eliminar notificación"
                               >
                                 <i className="fa-solid fa-trash"></i>
                               </button>
                             </div>
                           </div>
+                          <small className="text-muted">
+                            <i className="fa-regular fa-clock me-1"></i>
+                            {new Date(notif.created_at).toLocaleString('es-ES', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </small>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-muted p-4">
-                        <i className="fa-regular fa-bell-slash fa-2x mb-2"></i>
-                        <p className="mb-0">No hay notificaciones</p>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-muted p-4">
+                      <i className="fa-regular fa-bell-slash fa-3x mb-3 text-secondary"></i>
+                      <h6 className="mb-1">No hay notificaciones</h6>
+                      <small>Cuando tengas notificaciones, aparecerán aquí</small>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* User dropdown */}
@@ -333,13 +354,20 @@ const Navbar = () => {
                   <small className="text-white-50">{user.role}</small>
                 </div>
               </button>
-              
+
               <ul className="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                 <li>
                   <Link className="dropdown-item" to="/profile">
                     <i className="fa-solid fa-user-gear me-2"></i> Mi perfil
                   </Link>
                 </li>
+                {user.role === "admin" && (
+                  <li>
+                    <Link className="dropdown-item" to="/send-notification">
+                      <i className="fa-solid fa-paper-plane me-2"></i> Enviar notificación
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link className="dropdown-item" to="/settings">
                     <i className="fa-solid fa-gear me-2"></i> Configuración

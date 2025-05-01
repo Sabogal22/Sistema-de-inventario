@@ -19,7 +19,7 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # Usuarios
-    path('user/', get_user, name='get_  user'),
+    path('user/', get_user, name='get_user'),
     path('users/all/', get_all_users, name='get_all_users'),
     path("users/create/", create_user, name="users_create"),
     path("users/<int:pk>/", update_user, name="users_update"),

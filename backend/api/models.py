@@ -47,6 +47,8 @@ class Status(models.Model):
         DISPONIBLE = 'Disponible', 'Disponible'
         MANTENIMIENTO = 'Mantenimiento', 'Mantenimiento'
         NO_DISPONIBLE = 'No disponible', 'No disponible'
+        BAJO_STOCK = 'Bajo stock', 'Bajo stock'
+        AGOTADO = 'Agotado', 'Agotado'
 
     name = models.CharField(
         max_length=100,
@@ -67,9 +69,35 @@ class Item(models.Model):
     status = models.ForeignKey(Status, on_delete=models.CASCADE, related_name='items')
     qr_code = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Nuevos campos para gestión de stock
+    stock = models.PositiveIntegerField(default=1, verbose_name="Cantidad en inventario")
+    min_stock = models.PositiveIntegerField(default=1, verbose_name="Stock mínimo")
+    responsible_user = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name="Usuario responsable",
+        related_name='responsible_items'
+    )
 
     def __str__(self):
-        return self.name
+        return f"{self.name} (Stock: {self.stock})"
+    
+    @property
+    def is_low_stock(self):
+        """Retorna True si el stock está por debajo del mínimo"""
+        return self.stock < self.min_stock
+    
+    @property
+    def stock_status(self):
+        """Retorna el estado del stock"""
+        if self.stock == 0:
+            return "Agotado"
+        elif self.is_low_stock:
+            return "Bajo stock"
+        return "Disponible"
 
 # Modelo de Movimiento de Ítem
 class ItemMovement(models.Model):

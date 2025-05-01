@@ -50,3 +50,63 @@
   color: #f39c12 !important;
   border-bottom: 3px solid #f39c12;
 }
+
+.notification-content {
+  scrollbar-width: thin;
+  scrollbar-color: #28a745 #f1f1f1;
+}
+
+.unread-notification {
+  background-color: rgba(40, 167, 69, 0.08) !important;
+  transition: all 0.3s ease;
+}
+
+@keyframes highlight {
+  0% { background-color: rgba(40, 167, 69, 0.15); }
+  100% { background-color: rgba(40, 167, 69, 0.08); }
+}
+
+.new-notification {
+  animation: highlight 1.5s ease-out;
+}
+
+.unread-notification:hover {
+  background-color: rgba(40, 167, 69, 0.15) !important;
+}
+
+@keyframes bellRing {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(15deg); }
+  20% { transform: rotate(-15deg); }
+  30% { transform: rotate(10deg); }
+  40% { transform: rotate(-10deg); }
+  50% { transform: rotate(5deg); }
+  60% { transform: rotate(-5deg); }
+  70% { transform: rotate(2deg); }
+  80% { transform: rotate(-2deg); }
+  90% { transform: rotate(1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.has-unread {
+  animation: bellRing 1s ease;
+}
+
+/* Estilo para el dropdown de notificaciones */
+.notification-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.notification-content::-webkit-scrollbar-thumb {
+  background: #28a745;
+  border-radius: 10px;
+}
+
+.notification-content::-webkit-scrollbar-thumb:hover {
+  background: #218838;
+}

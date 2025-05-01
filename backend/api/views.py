@@ -1,6 +1,6 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from api.models import Notification, User, Location, Category, Item
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -9,6 +9,9 @@ import json
 from django.contrib.auth.hashers import make_password
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth import get_user_model
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -88,44 +91,64 @@ def delete_notification(request, notif_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])  # Solo administradores pueden enviar
 def send_notification(request):
+  try:
+    user_id = request.data.get('user_id')
+    message = request.data.get('message')
+        
+    if not user_id or not message:
+      return Response(
+        {"error": "Se requieren user_id y message"}, 
+        status=400
+      )
+        
     try:
-        user_id = request.data.get('user_id')
-        message = request.data.get('message')
+      user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+      return Response(
+        {"error": "Usuario no encontrado"}, 
+        status=404
+      )
         
-        if not user_id or not message:
-            return Response(
-                {"error": "Se requieren user_id y message"}, 
-                status=400
-            )
+    notification = Notification.objects.create(
+      user=user,
+      message=message
+    )
         
-        try:
-            user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Usuario no encontrado"}, 
-                status=404
-            )
-        
-        notification = Notification.objects.create(
-            user=user,
-            message=message
-        )
-        
-        return Response({
-            "status": "success",
-            "message": "Notificación enviada correctamente",
-            "notification": {
-                "id": notification.id,
-                "message": notification.message,
-                "created_at": notification.created_at.strftime("%Y-%m-%d %H:%M:%S")
-            }
-        })
+    return Response({
+      "status": "success",
+      "message": "Notificación enviada correctamente",
+      "notification": {
+        "id": notification.id,
+        "message": notification.message,
+        "created_at": notification.created_at.strftime("%Y-%m-%d %H:%M:%S")
+      }
+    })
     
-    except Exception as e:
-        return Response(
-            {"error": str(e)}, 
-            status=500
-        )
+  except Exception as e:
+    return Response(
+      {"error": str(e)}, 
+      status=500
+    )
+
+
+@receiver(post_save, sender=Item)
+def check_low_stock(sender, instance, **kwargs):
+  # Notificar cuando el stock esté bajo
+  if instance.is_low_stock:
+    # Notificar al usuario responsable si existe
+    if instance.responsible_user:
+      Notification.objects.create(
+        user=instance.responsible_user,
+        message=f"¡Alerta! Producto {instance.name} con bajo stock ({instance.stock} unidades)"
+      )
+        
+    # Notificar también a los administradores
+    admins = User.objects.filter(role='admin')
+    for admin in admins:
+      Notification.objects.create(
+        user=admin,
+        message=f"¡Alerta! Producto {instance.name} con bajo stock ({instance.stock} unidades)"
+      )
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
