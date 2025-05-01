@@ -11,7 +11,8 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.auth import get_user_model
+from rest_framework.pagination import PageNumberPagination
+from django.core.serializers.json import DjangoJSONEncoder
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -389,25 +390,43 @@ def dashboard_summary(request):
     "no_disponibles": no_disponibles
   })
 
+class ItemPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 # Obtener todos los items
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_all_item(request):
-  items = Item.objects.select_related('category', 'location', 'status').all()
-  data = []
-
-  for item in items:
-    data.append({
-      'id': item.id,
-      'name': item.name,
-      'description': item.description,
-      'category': item.category.name,
-      'location': item.location.name,
-      'status': item.status.name,
-      'qrCode': item.qr_code,
-    })
-
-  return JsonResponse(data, safe=False)
+    items = Item.objects.select_related(
+        'category', 
+        'location', 
+        'status',
+        'responsible_user'
+    ).all().order_by('name')
+    
+    data = []
+    for item in items:
+        item_data = {
+            'id': item.id,
+            'name': item.name,
+            'description': item.description,
+            'image': request.build_absolute_uri(item.image.url) if item.image else None,
+            'category': item.category.name if item.category else None,
+            'location': item.location.name if item.location else None,
+            'status': item.status.name if item.status else None,
+            'qr_code': item.qr_code,
+            'created_at': item.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'stock': item.stock,
+            'min_stock': item.min_stock,
+            'is_low_stock': item.is_low_stock,
+            'stock_status': item.stock_status,
+            'responsible_user': item.responsible_user.username if item.responsible_user else None
+        }
+        data.append(item_data)
+    
+    return JsonResponse(data, safe=False, encoder=DjangoJSONEncoder)
 
 @api_view(['GET'])
 # @permission_classes([IsAuthenticated])

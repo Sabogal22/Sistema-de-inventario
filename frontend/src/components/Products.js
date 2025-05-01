@@ -17,7 +17,9 @@ import {
   Modal,
   Form,
   Pagination,
-  Dropdown
+  Dropdown,
+  Tooltip,
+  OverlayTrigger
 } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
@@ -34,7 +36,9 @@ const Products = () => {
     total: 0,
     available: 0,
     maintenance: 0,
-    unavailable: 0
+    unavailable: 0,
+    lowStock: 0,
+    outOfStock: 0
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -49,14 +53,21 @@ const Products = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         
-        const sortedProducts = response.data.sort((a, b) => a.name.localeCompare(b.name));
+        // Verificamos si response.data es un array
+        const productsData = Array.isArray(response.data) ? response.data : Object.values(response.data);
+        
+        // Ordenamos los productos
+        const sortedProducts = productsData.sort((a, b) => a.name.localeCompare(b.name));
+        
         setProducts(sortedProducts);
         
         setStats({
           total: sortedProducts.length,
           available: sortedProducts.filter(p => p.status === 'Disponible').length,
           maintenance: sortedProducts.filter(p => p.status === 'Mantenimiento').length,
-          unavailable: sortedProducts.filter(p => p.status === 'No disponible').length
+          unavailable: sortedProducts.filter(p => p.status === 'No disponible').length,
+          lowStock: sortedProducts.filter(p => p.stock_status === 'Bajo stock').length,
+          outOfStock: sortedProducts.filter(p => p.stock_status === 'Agotado').length
         });
         
       } catch (error) {
@@ -76,8 +87,9 @@ const Products = () => {
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.location.toLowerCase().includes(searchTerm.toLowerCase());
+      (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (product.location && product.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (product.responsible_user && product.responsible_user.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = filterStatus === 'all' || product.status === filterStatus;
     
@@ -115,8 +127,12 @@ const Products = () => {
         Categoría: product.category,
         Ubicación: product.location,
         Estado: product.status,
-        'Código QR': product.qrCode,
-        'Fecha Registro': product.created_at
+        'Código QR': product.qr_code,
+        'Fecha Registro': product.created_at,
+        'Stock Actual': product.stock,
+        'Stock Mínimo': product.min_stock,
+        'Estado Stock': product.stock_status,
+        'Usuario Responsable': product.responsible_user
       }));
       
       const worksheet = XLSX.utils.json_to_sheet(worksheetData);
@@ -153,7 +169,9 @@ const Products = () => {
       setStats(prev => ({
         ...prev,
         total: prev.total - 1,
-        [productToDelete.status.toLowerCase().replace(' ', '_')]: prev[productToDelete.status.toLowerCase().replace(' ', '_')] - 1
+        [productToDelete.status.toLowerCase().replace(' ', '_')]: prev[productToDelete.status.toLowerCase().replace(' ', '_')] - 1,
+        [productToDelete.stock_status === 'Bajo stock' ? 'lowStock' : 'outOfStock']: 
+          productToDelete.stock_status === 'Bajo stock' ? prev.lowStock - 1 : prev.outOfStock - 1
       }));
       
     } catch (error) {
@@ -167,8 +185,7 @@ const Products = () => {
     const statusConfig = {
       Disponible: { color: "success", icon: "fa-check-circle" },
       Mantenimiento: { color: "warning", icon: "fa-tools", textDark: true },
-      "No disponible": { color: "danger", icon: "fa-times-circle" },
-      "Bajo stock": { color: "info", icon: "fa-exclamation-triangle" }
+      "No disponible": { color: "danger", icon: "fa-times-circle" }
     };
 
     const config = statusConfig[status] || { color: "secondary", icon: "fa-question-circle" };
@@ -180,6 +197,27 @@ const Products = () => {
       >
         <i className={`fas ${config.icon}`}></i>
         {status}
+      </Badge>
+    );
+  };
+
+  // Badge de estado de stock
+  const getStockStatusBadge = (stockStatus) => {
+    const statusConfig = {
+      "Bajo stock": { color: "warning", icon: "fa-exclamation-triangle", textDark: true },
+      "Agotado": { color: "danger", icon: "fa-box-open" },
+      "Disponible": { color: "success", icon: "fa-check" }
+    };
+
+    const config = statusConfig[stockStatus] || { color: "secondary", icon: "fa-question-circle" };
+
+    return (
+      <Badge 
+        bg={config.color} 
+        className={`d-flex align-items-center gap-1 ${config.textDark ? 'text-dark' : ''}`}
+      >
+        <i className={`fas ${config.icon}`}></i>
+        {stockStatus}
       </Badge>
     );
   };
@@ -247,7 +285,7 @@ const Products = () => {
 
       {/* Estadísticas */}
       <Row className="mb-4">
-        <Col md={3}>
+        <Col md={2}>
           <Card className="shadow-sm border-0 h-100">
             <Card.Body className="py-3">
               <div className="d-flex justify-content-between align-items-center">
@@ -263,7 +301,7 @@ const Products = () => {
           </Card>
         </Col>
         
-        <Col md={3}>
+        <Col md={2}>
           <Card className="shadow-sm border-0 h-100">
             <Card.Body className="py-3">
               <div className="d-flex justify-content-between align-items-center">
@@ -279,7 +317,7 @@ const Products = () => {
           </Card>
         </Col>
         
-        <Col md={3}>
+        <Col md={2}>
           <Card className="shadow-sm border-0 h-100">
             <Card.Body className="py-3">
               <div className="d-flex justify-content-between align-items-center">
@@ -295,7 +333,7 @@ const Products = () => {
           </Card>
         </Col>
         
-        <Col md={3}>
+        <Col md={2}>
           <Card className="shadow-sm border-0 h-100">
             <Card.Body className="py-3">
               <div className="d-flex justify-content-between align-items-center">
@@ -305,6 +343,38 @@ const Products = () => {
                 </div>
                 <div className="bg-danger bg-opacity-10 p-3 rounded">
                   <i className="fas fa-times-circle text-danger"></i>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col md={2}>
+          <Card className="shadow-sm border-0 h-100">
+            <Card.Body className="py-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="mb-0 text-muted">Bajo stock</h6>
+                  <h3 className="mb-0 text-warning">{stats.lowStock}</h3>
+                </div>
+                <div className="bg-warning bg-opacity-10 p-3 rounded">
+                  <i className="fas fa-exclamation-triangle text-warning"></i>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col md={2}>
+          <Card className="shadow-sm border-0 h-100">
+            <Card.Body className="py-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="mb-0 text-muted">Agotados</h6>
+                  <h3 className="mb-0 text-danger">{stats.outOfStock}</h3>
+                </div>
+                <div className="bg-danger bg-opacity-10 p-3 rounded">
+                  <i className="fas fa-box-open text-danger"></i>
                 </div>
               </div>
             </Card.Body>
@@ -362,7 +432,7 @@ const Products = () => {
                   <i className="fas fa-search"></i>
                 </InputGroup.Text>
                 <FormControl
-                  placeholder="Buscar productos por nombre, descripción, categoría o ubicación..."
+                  placeholder="Buscar productos por nombre, descripción, categoría, ubicación o responsable..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -449,6 +519,10 @@ const Products = () => {
                   <th>Categoría</th>
                   <th>Ubicación</th>
                   <th className="text-center">Estado</th>
+                  <th className="text-center">Stock</th>
+                  <th className="text-center">Mínimo</th>
+                  <th className="text-center">Estado Stock</th>
+                  <th className="text-center">Responsable</th>
                   <th className="text-center">Acciones</th>
                 </tr>
               </thead>
@@ -489,17 +563,41 @@ const Products = () => {
                       <td>
                         <Badge bg="light" text="dark">
                           <i className="fas fa-tag me-1"></i>
-                          {product.category}
+                          {product.category || 'Sin categoría'}
                         </Badge>
                       </td>
                       <td>
                         <Badge bg="light" text="dark">
                           <i className="fas fa-map-marker-alt me-1"></i>
-                          {product.location}
+                          {product.location || 'Sin ubicación'}
                         </Badge>
                       </td>
                       <td className="text-center">
                         {getStatusBadge(product.status)}
+                      </td>
+                      <td className="text-center fw-bold">
+                        {product.stock}
+                      </td>
+                      <td className="text-center">
+                        {product.min_stock}
+                      </td>
+                      <td className="text-center">
+                        {getStockStatusBadge(product.stock_status)}
+                      </td>
+                      <td className="text-center">
+                        {product.responsible_user ? (
+                          <OverlayTrigger
+                            placement="top"
+                            overlay={<Tooltip>Usuario responsable</Tooltip>}
+                          >
+                            <Badge bg="info">
+                              <i className="fas fa-user me-1"></i>
+                              {product.responsible_user}
+                            </Badge>
+                          </OverlayTrigger>
+                        ) : (
+                          <small className="text-muted">No asignado</small>
+                        )}
                       </td>
                       <td className="text-center">
                         <Button 
@@ -525,7 +623,7 @@ const Products = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="text-center py-4">
+                    <td colSpan="12" className="text-center py-4">
                       {searchTerm || filterStatus !== 'all' ? (
                         <Alert variant="info" className="mb-0">
                           <i className="fas fa-info-circle me-2"></i>

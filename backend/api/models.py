@@ -18,8 +18,6 @@ class Notification(models.Model):
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    # Elimina los campos sender y recipient si no los necesitas
-    # O déjalos si realmente los vas a usar para mensajería
 
     class Meta:
         ordering = ['-created_at']
