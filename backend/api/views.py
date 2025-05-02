@@ -429,51 +429,58 @@ def get_all_item(request):
     return JsonResponse(data, safe=False, encoder=DjangoJSONEncoder)
 
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def item_detail(request, id):
-    try:
-        # Obtenemos el ítem con todas las relaciones necesarias
-        item = Item.objects.select_related(
-            'category', 
-            'location', 
-            'status'
-        ).get(pk=id)
+  try:
+    item = Item.objects.select_related(
+      'category', 
+      'location', 
+      'status',
+      'responsible_user'
+    ).get(pk=id)
+
+    data = {
+      'id': item.id,
+      'name': item.name,
+      'description': item.description,
+      'stock': item.stock,
+      'min_stock': item.min_stock,
+      'category': {
+        'id': item.category.id,
+        'name': item.category.name
+      },
+      'location': {
+        'id': item.location.id,
+        'name': item.location.name
+      },
+      'status': {
+        'id': item.status.id,
+        'name': item.status.name
+      },
+      'qr_code': item.qr_code,
+      'created_at': item.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+      'responsible_user': None
+    }
+
+    if item.responsible_user:
+      data['responsible_user'] = {
+        'id': item.responsible_user.id,
+        'username': item.responsible_user.username,
+        'role': item.responsible_user.role or 'Usuario'
+      }
+
+    if item.image:
+      data['image'] = request.build_absolute_uri(item.image.url)
         
-        # Construimos la respuesta manualmente
-        data = {
-            'id': item.id,
-            'name': item.name,
-            'description': item.description,
-            'category': {
-                'id': item.category.id,
-                'name': item.category.name
-            },
-            'location': {
-                'id': item.location.id,
-                'name': item.location.name
-            },
-            'status': {
-                'id': item.status.id,
-                'name': item.status.name
-            },
-            'qr_code': item.qr_code,
-            'created_at': item.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            # Agrega más campos si son necesarios
-        }
+    return Response(data)
         
-        # Si el ítem tiene imagen, agregamos la URL
-        if item.image:
-            data['image'] = request.build_absolute_uri(item.image.url)
-        
-        return Response(data)
-        
-    except Item.DoesNotExist:
-        return Response(
-            {"error": "Ítem no encontrado"}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        return Response(
-            {"error": str(e)}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+  except Item.DoesNotExist:
+    return Response(
+      {"error": "Ítem no encontrado"}, 
+      status=status.HTTP_404_NOT_FOUND
+    )
+  except Exception as e:
+    return Response(
+      {"error": str(e)}, 
+      status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    )

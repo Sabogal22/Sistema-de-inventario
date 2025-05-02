@@ -8,9 +8,12 @@ const ItemDetail = () => {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stockHistory, setStockHistory] = useState([]);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockAction, setStockAction] = useState({ type: 'add', quantity: 1 });
 
   useEffect(() => {
-    const fetchItem = async () => {
+    const fetchItemData = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('access_token');
@@ -19,11 +22,23 @@ const ItemDetail = () => {
           throw new Error("No hay token de autenticación");
         }
 
-        const response = await axios.get(`http://127.0.0.1:8000/items/${id}/`, {
+        // Obtener datos del ítem
+        const itemResponse = await axios.get(`http://127.0.0.1:8000/items/${id}/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
-        setItem(response.data);
+        setItem(itemResponse.data);
+        
+        // Obtener historial de stock (si tu API lo soporta)
+        try {
+          const historyResponse = await axios.get(`http://127.0.0.1:8000/items/${id}/stock-history/`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setStockHistory(historyResponse.data);
+        } catch (historyError) {
+          console.log("No se pudo cargar el historial de stock");
+        }
+        
         setError(null);
       } catch (err) {
         console.error("Error:", err);
@@ -33,8 +48,57 @@ const ItemDetail = () => {
       }
     };
 
-    fetchItem();
+    fetchItemData();
   }, [id]);
+
+  const handleStockUpdate = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.post(
+        `http://127.0.0.1:8000/items/${id}/update-stock/`,
+        stockAction,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Actualizar el ítem con los nuevos datos
+      setItem(response.data.updated_item);
+      setShowStockModal(false);
+      
+      // Actualizar historial
+      if (response.data.history_entry) {
+        setStockHistory(prev => [response.data.history_entry, ...prev]);
+      }
+      
+    } catch (err) {
+      console.error("Error al actualizar stock:", err);
+      setError(err.response?.data?.message || "Error al actualizar el stock");
+    }
+  };
+
+  const getStockBadge = () => {
+    if (!item) return null;
+    
+    let badgeClass = "success";
+    let icon = "fa-check";
+    let text = `Stock: ${item.stock}`;
+    
+    if (item.stock === 0) {
+      badgeClass = "danger";
+      icon = "fa-times";
+      text = "Agotado";
+    } else if (item.stock < item.min_stock) {
+      badgeClass = "warning text-dark";
+      icon = "fa-exclamation-triangle";
+      text = `Bajo stock (${item.stock}/${item.min_stock})`;
+    }
+    
+    return (
+      <span className={`badge bg-${badgeClass} d-flex align-items-center gap-2`}>
+        <i className={`fas ${icon}`}></i>
+        {text}
+      </span>
+    );
+  };
 
   if (loading) return (
     <div className="d-flex justify-content-center align-items-center" style={{ height: "80vh" }}>
@@ -83,10 +147,11 @@ const ItemDetail = () => {
 
       {/* Tarjeta principal */}
       <div className="card border-success mb-4 shadow">
-        <div className="card-header bg-success text-white">
+        <div className="card-header bg-success text-white d-flex justify-content-between align-items-center">
           <h3 className="m-0">
             <i className="fa-solid fa-box me-2"></i> {item.name}
           </h3>
+          {getStockBadge()}
         </div>
         
         <div className="card-body">
@@ -139,6 +204,18 @@ const ItemDetail = () => {
                     </div>
                     <p className="ms-4">{item.location.name}</p>
                   </div>
+
+                  <div className="mb-3">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="fa-solid fa-user-shield text-success me-2"></i>
+                      <h6 className="m-0">Responsable</h6>
+                    </div>
+                    <p className="ms-4">
+                      {item.responsible_user 
+                        ? `${item.responsible_user.username} (${item.responsible_user.role})` 
+                        : 'No asignado'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -186,18 +263,135 @@ const ItemDetail = () => {
                       </span>
                     </p>
                   </div>
+
+                  <div className="mb-3">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="fa-solid fa-boxes-stacked text-success me-2"></i>
+                      <h6 className="m-0">Stock mínimo</h6>
+                    </div>
+                    <p className="ms-4">{item.min_stock} unidades</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Historial de stock */}
+          {stockHistory.length > 0 && (
+            <div className="mt-4">
+              <h5 className="text-success mb-3">
+                <i className="fa-solid fa-clock-rotate-left me-2"></i> Historial de Stock
+              </h5>
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Acción</th>
+                      <th>Cantidad</th>
+                      <th>Stock anterior</th>
+                      <th>Stock nuevo</th>
+                      <th>Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockHistory.map((entry, index) => (
+                      <tr key={index}>
+                        <td>{new Date(entry.date).toLocaleString()}</td>
+                        <td>
+                          <span className={`badge ${
+                            entry.action === 'add' ? 'bg-success' : 'bg-danger'
+                          }`}>
+                            {entry.action === 'add' ? 'Añadido' : 'Retirado'}
+                          </span>
+                        </td>
+                        <td>{entry.quantity}</td>
+                        <td>{entry.old_stock}</td>
+                        <td>{entry.new_stock}</td>
+                        <td>{entry.user || 'Sistema'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Sección de acciones */}
       <div className="d-flex justify-content-end gap-3 mt-4">
-        <button className="btn btn-success">
+        <button 
+          className="btn btn-success"
+          onClick={() => setShowStockModal(true)}
+        >
+          <i className="fa-solid fa-boxes-stacked me-2"></i> Gestionar Stock
+        </button>
+        
+        <button className="btn btn-primary">
           <i className="fa-solid fa-pen-to-square me-2"></i> Editar
         </button>
+      </div>
+
+      {/* Modal para gestionar stock */}
+      <div className={`modal fade ${showStockModal ? 'show d-block' : ''}`} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header bg-success text-white">
+              <h5 className="modal-title">Gestionar Stock</h5>
+              <button 
+                type="button" 
+                className="btn-close" 
+                onClick={() => setShowStockModal(false)}
+              ></button>
+            </div>
+            <div className="modal-body">
+              <div className="mb-3">
+                <label className="form-label">Acción</label>
+                <select 
+                  className="form-select"
+                  value={stockAction.type}
+                  onChange={(e) => setStockAction({...stockAction, type: e.target.value})}
+                >
+                  <option value="add">Añadir stock</option>
+                  <option value="subtract">Retirar stock</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Cantidad</label>
+                <input 
+                  type="number" 
+                  className="form-control"
+                  min="1"
+                  value={stockAction.quantity}
+                  onChange={(e) => setStockAction({...stockAction, quantity: parseInt(e.target.value) || 1})}
+                />
+              </div>
+              {stockAction.type === 'subtract' && item.stock - stockAction.quantity < 0 && (
+                <div className="alert alert-warning">
+                  No hay suficiente stock para esta operación
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setShowStockModal(false)}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-success"
+                onClick={handleStockUpdate}
+                disabled={stockAction.type === 'subtract' && item.stock - stockAction.quantity < 0}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
