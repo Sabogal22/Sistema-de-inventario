@@ -2,6 +2,7 @@ from django.urls import path
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from api.views import (
     get_all_item, get_user, get_all_users, create_user, item_detail, send_notification, update_user, delete_user,
     get_all_location, create_location, update_location, delete_location,
@@ -9,7 +10,6 @@ from api.views import (
     get_all_category, create_categiory, update_category, delete_category,
     search_items, dashboard_summary
 )
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
