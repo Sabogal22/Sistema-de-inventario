@@ -12,6 +12,19 @@ const ItemDetail = () => {
   const [showStockModal, setShowStockModal] = useState(false);
   const [stockAction, setStockAction] = useState({ type: 'add', quantity: 1 });
 
+  // Función para verificar si un endpoint existe
+  const checkEndpointExists = async (url) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.options(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.status === 200;
+    } catch (error) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const fetchItemData = async () => {
       try {
@@ -22,21 +35,25 @@ const ItemDetail = () => {
           throw new Error("No hay token de autenticación");
         }
 
-        // Obtener datos del ítem
+        // 1. Obtener datos del ítem
         const itemResponse = await axios.get(`http://127.0.0.1:8000/items/${id}/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
         setItem(itemResponse.data);
         
-        // Obtener historial de stock (si tu API lo soporta)
-        try {
-          const historyResponse = await axios.get(`http://127.0.0.1:8000/items/${id}/stock-history/`, {
+        // 2. Verificar y cargar historial solo si el endpoint existe
+        const historyEndpoint = `http://127.0.0.1:8000/items/${id}/stock-history/`;
+        const endpointAvailable = await checkEndpointExists(historyEndpoint);
+        
+        if (endpointAvailable) {
+          const historyResponse = await axios.get(historyEndpoint, {
             headers: { Authorization: `Bearer ${token}` },
           });
           setStockHistory(historyResponse.data);
-        } catch (historyError) {
-          console.log("No se pudo cargar el historial de stock");
+        } else {
+          console.log("Endpoint de historial no disponible, omitiendo...");
+          setStockHistory([]); // Inicializar como array vacío
         }
         
         setError(null);
