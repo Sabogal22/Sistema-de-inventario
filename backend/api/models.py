@@ -96,6 +96,19 @@ class Item(models.Model):
         elif self.is_low_stock:
             return "Bajo stock"
         return "Disponible"
+    
+# Modelo de Historial de Stock
+class StockHistory(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    action = models.CharField(max_length=10)
+    quantity = models.PositiveIntegerField()
+    old_stock = models.IntegerField()
+    new_stock = models.IntegerField()
+    user = models.CharField(max_length=150)
+    date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
 
 # Modelo de Movimiento de Ítem
 class ItemMovement(models.Model):

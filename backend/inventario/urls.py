@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from api.views import (
-    get_all_item, get_user, get_all_users, create_user, item_detail, send_notification, update_user, delete_user,
+    UpdateStockView, get_all_item, get_user, get_all_users, create_user, item_detail, send_notification, update_user, delete_user,
     get_all_location, create_location, update_location, delete_location,
     get_notifications, mark_all_as_read, mark_as_read, delete_notification,
     get_all_category, create_categiory, update_category, delete_category,
@@ -53,4 +53,5 @@ urlpatterns = [
 
     # Item
     path('items/all/', get_all_item, name='get_all_items'),
+    path('items/<int:item_id>/update-stock/', UpdateStockView.as_view(), name='update-stock'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

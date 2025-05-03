@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from api.models import Notification, User, Location, Category, Item
+from api.models import Notification, User, Location, Category, Item, StockHistory
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
@@ -13,6 +13,11 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.pagination import PageNumberPagination
 from django.core.serializers.json import DjangoJSONEncoder
+from rest_framework import status
+from django.utils import timezone
+from rest_framework.views import APIView
+from django.db import transaction
+import logging
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -445,6 +450,8 @@ def item_detail(request, id):
       'description': item.description,
       'stock': item.stock,
       'min_stock': item.min_stock,
+      'is_low_stock': item.is_low_stock,
+      'stock_status': item.stock_status,
       'category': {
         'id': item.category.id,
         'name': item.category.name
@@ -458,8 +465,9 @@ def item_detail(request, id):
         'name': item.status.name
       },
       'qr_code': item.qr_code,
-      'created_at': item.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-      'responsible_user': None
+      'created_at': item.created_at,
+      'responsible_user': None,
+      'image': request.build_absolute_uri(item.image.url) if item.image else None
     }
 
     if item.responsible_user:
@@ -468,10 +476,7 @@ def item_detail(request, id):
         'username': item.responsible_user.username,
         'role': item.responsible_user.role or 'Usuario'
       }
-
-    if item.image:
-      data['image'] = request.build_absolute_uri(item.image.url)
-        
+            
     return Response(data)
         
   except Item.DoesNotExist:
@@ -484,3 +489,90 @@ def item_detail(request, id):
       {"error": str(e)}, 
       status=status.HTTP_500_INTERNAL_SERVER_ERROR
     )
+
+logger = logging.getLogger(__name__)
+class UpdateStockView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, item_id):
+        try:
+            # Validación básica de datos de entrada
+            if not request.data:
+                logger.error("Datos de solicitud vacíos")
+                return Response(
+                    {'error': 'No se proporcionaron datos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            item = get_object_or_404(Item, id=item_id)
+            action_type = request.data.get('type', '').lower()
+            quantity = request.data.get('quantity')
+
+            logger.info(f"Intento de actualización: {action_type} {quantity} unidades para ítem {item_id}")
+
+            # Validación exhaustiva
+            if action_type not in ['add', 'subtract']:
+                error_msg = f"Tipo de acción inválida: {action_type}"
+                logger.warning(error_msg)
+                return Response(
+                    {'error': error_msg},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                quantity = int(quantity)
+                if quantity <= 0:
+                    raise ValueError("La cantidad debe ser positiva")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Error en cantidad: {str(e)}")
+                return Response(
+                    {'error': 'La cantidad debe ser un número entero positivo'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Lógica de actualización de stock
+            old_stock = item.stock
+            
+            if action_type == 'add':
+                new_stock = old_stock + quantity
+            else:  # subtract
+                if old_stock < quantity:
+                    error_msg = f"Stock insuficiente (disponible: {old_stock}, requerido: {quantity})"
+                    logger.warning(error_msg)
+                    return Response(
+                        {'error': error_msg},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                new_stock = old_stock - quantity
+
+            # Actualización en base de datos
+            item.stock = new_stock
+            item.save()
+
+            # Registrar en historial
+            history_entry = StockHistory.objects.create(
+                item=item,
+                action=action_type,
+                quantity=quantity,
+                old_stock=old_stock,
+                new_stock=new_stock,
+                user=request.user.username,
+                date=timezone.now()
+            )
+
+            logger.info(f"Stock actualizado correctamente para ítem {item_id}. Nuevo stock: {new_stock}")
+
+            return Response({
+                'success': True,
+                'message': 'Stock actualizado correctamente',
+                'stock': new_stock,
+                'history_id': history_entry.id
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error crítico al actualizar stock: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Error interno del servidor'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

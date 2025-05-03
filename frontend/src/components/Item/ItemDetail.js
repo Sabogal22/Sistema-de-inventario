@@ -53,25 +53,74 @@ const ItemDetail = () => {
 
   const handleStockUpdate = async () => {
     try {
+      setError(null);
       const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+  
+      // Validación básica en el frontend
+      if (!stockAction.quantity || stockAction.quantity <= 0) {
+        throw new Error("La cantidad debe ser mayor que cero");
+      }
+  
       const response = await axios.post(
         `http://127.0.0.1:8000/items/${id}/update-stock/`,
-        stockAction,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          type: stockAction.type,
+          quantity: parseInt(stockAction.quantity)
+        },
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000 // 5 segundos de timeout
+        }
       );
+  
+      if (response.data.success) {
+        // Actualizar el estado del ítem
+        setItem(prev => ({
+          ...prev,
+          stock: response.data.stock
+        }));
+        
+        // Actualizar historial
+        setStockHistory(prev => [{
+          id: response.data.history_id,
+          action: stockAction.type,
+          quantity: stockAction.quantity,
+          old_stock: prev[0]?.new_stock || item.stock,
+          new_stock: response.data.stock,
+          user: "Usuario actual", // Puedes obtener esto del contexto de autenticación
+          date: new Date().toISOString()
+        }, ...prev]);
+        
+        setShowStockModal(false);
+      } else {
+        throw new Error(response.data.error || "Error al actualizar stock");
+      }
+    } catch (err) {
+      let errorMessage = "Error al actualizar el stock";
       
-      // Actualizar el ítem con los nuevos datos
-      setItem(response.data.updated_item);
-      setShowStockModal(false);
-      
-      // Actualizar historial
-      if (response.data.history_entry) {
-        setStockHistory(prev => [response.data.history_entry, ...prev]);
+      if (err.response) {
+        // Error de la API
+        if (err.response.status === 400) {
+          errorMessage = err.response.data.error || "Datos inválidos";
+        } else if (err.response.status === 401) {
+          errorMessage = "No autorizado - por favor inicia sesión nuevamente";
+        } else if (err.response.status === 500) {
+          errorMessage = "Error interno del servidor";
+        }
+      } else if (err.message) {
+        // Error de Axios o validación
+        errorMessage = err.message;
       }
       
-    } catch (err) {
-      console.error("Error al actualizar stock:", err);
-      setError(err.response?.data?.message || "Error al actualizar el stock");
+      console.error("Error detallado:", err);
+      setError(errorMessage);
     }
   };
 
