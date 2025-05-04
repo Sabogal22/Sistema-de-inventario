@@ -22,6 +22,7 @@ import {
   OverlayTrigger
 } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -29,8 +30,6 @@ const Products = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [stats, setStats] = useState({
     total: 0,
@@ -151,32 +150,55 @@ const Products = () => {
   };
 
   // Eliminar producto
-  const handleDeleteClick = (product) => {
-    setProductToDelete(product);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("access_token");
-      await axios.delete(`http://127.0.0.1:8000/items/delete/${productToDelete.id}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      setProducts(products.filter(p => p.id !== productToDelete.id));
-      setShowDeleteModal(false);
-      
-      setStats(prev => ({
-        ...prev,
-        total: prev.total - 1,
-        [productToDelete.status.toLowerCase().replace(' ', '_')]: prev[productToDelete.status.toLowerCase().replace(' ', '_')] - 1,
-        [productToDelete.stock_status === 'Bajo stock' ? 'lowStock' : 'outOfStock']: 
-          productToDelete.stock_status === 'Bajo stock' ? prev.lowStock - 1 : prev.outOfStock - 1
-      }));
-      
-    } catch (error) {
-      console.error('Delete error:', error);
-      setError('Error al eliminar el producto');
+  const handleDelete = async (product) => {
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: `Vas a eliminar el producto "${product.name}" (ID: ${product.id}). Esta acción no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+  
+    if (result.isConfirmed) {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await axios.delete(
+          `http://127.0.0.1:8000/items/delete/${product.id}/`, 
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+  
+        // Actualizar el estado si la respuesta es exitosa
+        if (response.data.status === "success") {
+          setProducts(products.filter(p => p.id !== product.id));
+          
+          // Actualizar estadísticas
+          setStats(prev => ({
+            ...prev,
+            total: prev.total - 1,
+            [product.status.toLowerCase().replace(' ', '_')]: prev[product.status.toLowerCase().replace(' ', '_')] - 1,
+            [product.stock_status === 'Bajo stock' ? 'lowStock' : 'outOfStock']: 
+              product.stock_status === 'Bajo stock' ? prev.lowStock - 1 : prev.outOfStock - 1
+          }));
+          
+          Swal.fire(
+            '¡Eliminado!',
+            response.data.message || 'El producto ha sido eliminado correctamente.',
+            'success'
+          );
+        }
+      } catch (error) {
+        console.error('Error al eliminar:', error);
+        Swal.fire(
+          'Error',
+          error.response?.data?.error || 'No se pudo eliminar el producto. Por favor, inténtalo de nuevo.',
+          'error'
+        );
+      }
     }
   };
 
@@ -265,24 +287,6 @@ const Products = () => {
 
   return (
     <Container className="py-4">
-      {/* Modal de confirmación de eliminación */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton className="bg-danger text-white">
-          <Modal.Title>Confirmar eliminación</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          ¿Estás seguro que deseas eliminar el producto <strong>{productToDelete?.name}</strong>? Esta acción no se puede deshacer.
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancelar
-          </Button>
-          <Button variant="danger" onClick={confirmDelete}>
-            Eliminar
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       {/* Estadísticas */}
       <Row className="mb-4">
         <Col md={2}>
@@ -614,7 +618,7 @@ const Products = () => {
                           variant="outline-danger" 
                           size="sm"
                           title="Eliminar"
-                          onClick={() => handleDeleteClick(product)}
+                          onClick={() => handleDelete(product)}
                         >
                           <i className="fas fa-trash"></i>
                         </Button>

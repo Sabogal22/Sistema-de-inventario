@@ -433,6 +433,26 @@ def get_all_item(request):
     
   return JsonResponse(data, safe=False, encoder=DjangoJSONEncoder)
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_item(request, item_id):
+  item = get_object_or_404(Item, id=item_id)
+    
+  # Verificar si el usuario es el responsable o es superusuario
+  if not (request.user.is_superuser or item.responsible_user == request.user):
+    return Response(
+      {"error": "No tienes permisos para eliminar este item"}, 
+      status=status.HTTP_403_FORBIDDEN
+    )
+    
+  item.delete()
+    
+  return Response({
+    "status": "success",
+    "message": "Item eliminado correctamente",
+    "deleted_id": item_id
+  })
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def item_detail(request, id):
