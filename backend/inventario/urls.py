@@ -8,7 +8,8 @@ from api.views import (
     get_all_location, create_location, update_location, delete_location,
     get_notifications, mark_all_as_read, mark_as_read, delete_notification,
     get_all_category, create_categiory, update_category, delete_category,
-    search_items, dashboard_summary
+    search_items, dashboard_summary, CategoryListAPIView, LocationListAPIView,
+    StatusListAPIView, UserListAPIView, ItemCreateAPIView, get_all_status
 )
 
 urlpatterns = [
@@ -21,21 +22,28 @@ urlpatterns = [
     # Usuarios
     path('user/', get_user, name='get_user'),
     path('users/all/', get_all_users, name='get_all_users'),
+    path('users/list/', UserListAPIView.as_view(), name='user-list'),
     path("users/create/", create_user, name="users_create"),
     path("users/<int:pk>/", update_user, name="users_update"),
     path('users/delete/<int:pk>/', delete_user, name='delete-user'),
 
     # Localización
     path('location/all/', get_all_location, name='get_all_location'),
+    path('location/list/', LocationListAPIView.as_view(), name='location-list'),
     path('location/create/', create_location, name='create_location'),
     path('location/<int:pk>/update/', update_location, name='update_location'),
     path('location/<int:pk>/delete/', delete_location, name='delete_location'),
 
     # Categoría
     path('category/all/', get_all_category, name='get_all_category'),
+    path('category/list/', CategoryListAPIView.as_view(), name='category-list'),
     path('category/create/', create_categiory, name='create_category'),
     path('category/<int:pk>/update/', update_category, name='update_category'),
     path('category/<int:pk>/delete/', delete_category, name='delete_category'),
+
+    # Estados (nuevo endpoint)
+    path('status/all/', get_all_status, name='get_all_status'),
+    path('status/list/', StatusListAPIView.as_view(), name='status-list'),
 
     # Notificaciones
     path('notifications/', get_notifications, name='get_notifications'),
@@ -53,5 +61,6 @@ urlpatterns = [
 
     # Item
     path('items/all/', get_all_item, name='get_all_items'),
+    path('items/create/', ItemCreateAPIView.as_view(), name='item-create'),
     path('items/<int:item_id>/update-stock/', UpdateStockView.as_view(), name='update-stock'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -9,6 +9,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import User from "./components/Users/User";
 import ItemDetail from "./components/Item/ItemDetail";
 import SendNotification from "./components/SendNotification";
+import AddItem from "./components/Item/AddItem";
 
 const App = () => {
   return (
@@ -24,6 +25,7 @@ const App = () => {
           <Route path="/user" element={<User />} />
           <Route path="/items/:id" element={<ItemDetail />} />
           <Route path="/send-notification" element={<SendNotification />} />
+          <Route path="/products/add" element={<AddItem />} />
         </Route>
       </Routes>
     </Router>

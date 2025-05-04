@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from api.models import Notification, User, Location, Category, Item, StockHistory
+from api.models import Notification, User, Location, Category, Item, StockHistory, Status
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
@@ -160,7 +160,7 @@ def check_low_stock(sender, instance, **kwargs):
 @permission_classes([IsAuthenticated])
 def get_all_users(request):
   users = list(User.objects.all().values("id", "username", "email", "role"))
-  print(users)  # 🔍 Verifica si la consulta devuelve datos
+  print(users)
   return Response(users)
 
 # Crear un nuevo usuario
@@ -396,42 +396,42 @@ def dashboard_summary(request):
   })
 
 class ItemPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
+  page_size = 10
+  page_size_query_param = 'page_size'
+  max_page_size = 100
 
 # Obtener todos los items
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_all_item(request):
-    items = Item.objects.select_related(
-        'category', 
-        'location', 
-        'status',
-        'responsible_user'
-    ).all().order_by('name')
+  items = Item.objects.select_related(
+    'category', 
+    'location', 
+    'status',
+    'responsible_user'
+  ).all().order_by('name')
     
-    data = []
-    for item in items:
-        item_data = {
-            'id': item.id,
-            'name': item.name,
-            'description': item.description,
-            'image': request.build_absolute_uri(item.image.url) if item.image else None,
-            'category': item.category.name if item.category else None,
-            'location': item.location.name if item.location else None,
-            'status': item.status.name if item.status else None,
-            'qr_code': item.qr_code,
-            'created_at': item.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'stock': item.stock,
-            'min_stock': item.min_stock,
-            'is_low_stock': item.is_low_stock,
-            'stock_status': item.stock_status,
-            'responsible_user': item.responsible_user.username if item.responsible_user else None
-        }
-        data.append(item_data)
+  data = []
+  for item in items:
+    item_data = {
+      'id': item.id,
+      'name': item.name,
+      'description': item.description,
+      'image': request.build_absolute_uri(item.image.url) if item.image else None,
+      'category': item.category.name if item.category else None,
+      'location': item.location.name if item.location else None,
+      'status': item.status.name if item.status else None,
+      'qr_code': item.qr_code,
+      'created_at': item.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+      'stock': item.stock,
+      'min_stock': item.min_stock,
+      'is_low_stock': item.is_low_stock,
+      'stock_status': item.stock_status,
+      'responsible_user': item.responsible_user.username if item.responsible_user else None
+    }
+    data.append(item_data)
     
-    return JsonResponse(data, safe=False, encoder=DjangoJSONEncoder)
+  return JsonResponse(data, safe=False, encoder=DjangoJSONEncoder)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -492,87 +492,157 @@ def item_detail(request, id):
 
 logger = logging.getLogger(__name__)
 class UpdateStockView(APIView):
-    permission_classes = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
-    def post(self, request, item_id):
-        try:
-            # Validación básica de datos de entrada
-            if not request.data:
-                logger.error("Datos de solicitud vacíos")
-                return Response(
-                    {'error': 'No se proporcionaron datos'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+  @transaction.atomic
+  def post(self, request, item_id):
+    try:
+      # Validación básica de datos de entrada
+      if not request.data:
+        logger.error("Datos de solicitud vacíos")
+        return Response(
+          {'error': 'No se proporcionaron datos'},
+          status=status.HTTP_400_BAD_REQUEST
+        )
 
-            item = get_object_or_404(Item, id=item_id)
-            action_type = request.data.get('type', '').lower()
-            quantity = request.data.get('quantity')
+      item = get_object_or_404(Item, id=item_id)
+      action_type = request.data.get('type', '').lower()
+      quantity = request.data.get('quantity')
 
-            logger.info(f"Intento de actualización: {action_type} {quantity} unidades para ítem {item_id}")
+      logger.info(f"Intento de actualización: {action_type} {quantity} unidades para ítem {item_id}")
 
-            # Validación exhaustiva
-            if action_type not in ['add', 'subtract']:
-                error_msg = f"Tipo de acción inválida: {action_type}"
-                logger.warning(error_msg)
-                return Response(
-                    {'error': error_msg},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+      # Validación exhaustiva
+      if action_type not in ['add', 'subtract']:
+        error_msg = f"Tipo de acción inválida: {action_type}"
+        logger.warning(error_msg)
+        return Response(
+          {'error': error_msg},
+          status=status.HTTP_400_BAD_REQUEST
+        )
 
-            try:
-                quantity = int(quantity)
-                if quantity <= 0:
-                    raise ValueError("La cantidad debe ser positiva")
-            except (ValueError, TypeError) as e:
-                logger.warning(f"Error en cantidad: {str(e)}")
-                return Response(
-                    {'error': 'La cantidad debe ser un número entero positivo'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+      try:
+        quantity = int(quantity)
+        if quantity <= 0:
+          raise ValueError("La cantidad debe ser positiva")
+      except (ValueError, TypeError) as e:
+        logger.warning(f"Error en cantidad: {str(e)}")
+        return Response(
+          {'error': 'La cantidad debe ser un número entero positivo'},
+          status=status.HTTP_400_BAD_REQUEST
+        )
 
-            # Lógica de actualización de stock
-            old_stock = item.stock
+      # Lógica de actualización de stock
+      old_stock = item.stock
             
-            if action_type == 'add':
-                new_stock = old_stock + quantity
-            else:  # subtract
-                if old_stock < quantity:
-                    error_msg = f"Stock insuficiente (disponible: {old_stock}, requerido: {quantity})"
-                    logger.warning(error_msg)
-                    return Response(
-                        {'error': error_msg},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                new_stock = old_stock - quantity
+      if action_type == 'add':
+        new_stock = old_stock + quantity
+      else:  # subtract
+        if old_stock < quantity:
+          error_msg = f"Stock insuficiente (disponible: {old_stock}, requerido: {quantity})"
+          logger.warning(error_msg)
+          return Response(
+            {'error': error_msg},
+            status=status.HTTP_400_BAD_REQUEST
+          )
+        new_stock = old_stock - quantity
 
-            # Actualización en base de datos
-            item.stock = new_stock
-            item.save()
+      # Actualización en base de datos
+      item.stock = new_stock
+      item.save()
 
-            # Registrar en historial
-            history_entry = StockHistory.objects.create(
-                item=item,
-                action=action_type,
-                quantity=quantity,
-                old_stock=old_stock,
-                new_stock=new_stock,
-                user=request.user.username,
-                date=timezone.now()
-            )
+      # Registrar en historial
+      history_entry = StockHistory.objects.create(
+        item=item,
+        action=action_type,
+        quantity=quantity,
+        old_stock=old_stock,
+        new_stock=new_stock,
+        user=request.user.username,
+        date=timezone.now()
+      )
 
-            logger.info(f"Stock actualizado correctamente para ítem {item_id}. Nuevo stock: {new_stock}")
+      logger.info(f"Stock actualizado correctamente para ítem {item_id}. Nuevo stock: {new_stock}")
 
-            return Response({
-                'success': True,
-                'message': 'Stock actualizado correctamente',
-                'stock': new_stock,
-                'history_id': history_entry.id
-            }, status=status.HTTP_200_OK)
+      return Response({
+        'success': True,
+        'message': 'Stock actualizado correctamente',
+        'stock': new_stock,
+        'history_id': history_entry.id
+      }, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Error crítico al actualizar stock: {str(e)}", exc_info=True)
-            return Response(
-                {'error': 'Error interno del servidor'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+    except Exception as e:
+      logger.error(f"Error crítico al actualizar stock: {str(e)}", exc_info=True)
+      return Response(
+        {'error': 'Error interno del servidor'},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+      )
+
+# Vistas para el formulario de creación
+class CategoryListAPIView(APIView):
+  def get(self, request):
+    categories = Category.objects.all().values('id', 'name')
+    return Response(list(categories))
+
+class LocationListAPIView(APIView):
+  def get(self, request):
+    locations = Location.objects.all().values('id', 'name')
+    return Response(list(locations))
+
+class StatusListAPIView(APIView):
+  def get(self, request):
+    statuses = Status.objects.all().values('id', 'name')
+    return Response(list(statuses))
+
+class UserListAPIView(APIView):
+  def get(self, request):
+    users = User.objects.all().values('id', 'username')
+    return Response(list(users))
+
+def get_all_status(request):
+  statuses = Status.objects.all().values('id', 'name')
+  return JsonResponse(list(statuses), safe=False)
+
+class ItemCreateAPIView(APIView):
+  def post(self, request):
+    try:
+      # Procesar los datos del formulario
+      data = request.data
+            
+      # Validar datos requeridos
+      required_fields = ['name', 'category', 'location', 'status', 'stock', 'min_stock']
+      for field in required_fields:
+        if field not in data:
+          return Response({
+            'success': False,
+            'message': f'El campo {field} es requerido'
+          }, status=400)
+            
+      # Crear el ítem
+      item = Item.objects.create(
+        name=data.get('name'),
+        description=data.get('description', ''),
+        category_id=data.get('category'),
+        location_id=data.get('location'),
+        status_id=data.get('status'),
+        stock=data.get('stock', 1),
+        min_stock=data.get('min_stock', 1),
+        responsible_user_id=data.get('responsible_user'),
+        qr_code=data.get('qr_code', '')
+      )
+            
+      # Procesar la imagen si existe
+      if 'image' in request.FILES:
+        item.image = request.FILES['image']
+        item.save()
+            
+      return Response({
+        'success': True,
+        'message': 'Ítem creado exitosamente',
+        'item_id': item.id
+      })
+            
+    except Exception as e:
+      return Response({
+        'success': False,
+        'message': str(e)
+      }, status=400)
