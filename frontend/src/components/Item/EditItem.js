@@ -17,6 +17,8 @@ import {
 const EditItem = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // Estados del formulario
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -30,18 +32,35 @@ const EditItem = () => {
     image: null
   });
   
+  // Estados para datos de selección
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [users, setUsers] = useState([]);
+  
+  // Estados de UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [currentImage, setCurrentImage] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Estado para comparación de cambios
+  const [originalData, setOriginalData] = useState({
+    name: '',
+    description: '',
+    category: '',
+    location: '',
+    status: '',
+    stock: 1,
+    min_stock: 1,
+    responsible_user: '',
+    qr_code: '',
+    image: null
+  });
 
-  // Cargar datos del ítem y datos necesarios para los select
+  // Cargar datos del ítem
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -49,20 +68,19 @@ const EditItem = () => {
         const token = localStorage.getItem('access_token');
         const headers = { Authorization: `Bearer ${token}` };
         
-        // Obtener datos del ítem
-        const itemResponse = await axios.get(`http://127.0.0.1:8000/items/detail/${id}/`, { headers });
-        const itemData = itemResponse.data;
-        
-        // Obtener datos para los select
-        const [categoriesRes, locationsRes, statusesRes, usersRes] = await Promise.all([
+        // Obtener datos del ítem y listas en paralelo
+        const [itemResponse, categoriesRes, locationsRes, statusesRes, usersRes] = await Promise.all([
+          axios.get(`http://127.0.0.1:8000/items/${id}/`, { headers }),
           axios.get("http://127.0.0.1:8000/category/list/", { headers }),
           axios.get('http://127.0.0.1:8000/location/list/', { headers }),
           axios.get('http://127.0.0.1:8000/status/list/', { headers }),
           axios.get('http://127.0.0.1:8000/users/list/', { headers })
         ]);
         
-        // Establecer datos del ítem
-        setFormData({
+        const itemData = itemResponse.data;
+        
+        // Establecer estados del formulario
+        const newFormData = {
           name: itemData.name,
           description: itemData.description,
           category: itemData.category?.id || '',
@@ -73,9 +91,11 @@ const EditItem = () => {
           responsible_user: itemData.responsible_user?.id || '',
           qr_code: itemData.qr_code || '',
           image: null
-        });
+        };
         
-        // Establecer imagen actual si existe
+        setFormData(newFormData);
+        setOriginalData(newFormData);
+        
         if (itemData.image) {
           setCurrentImage(itemData.image);
         }
@@ -101,7 +121,7 @@ const EditItem = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'stock' || name === 'min_stock' ? parseInt(value) || 0 : value
     }));
   };
 
@@ -109,8 +129,6 @@ const EditItem = () => {
     const file = e.target.files[0];
     if (file) {
       setFormData(prev => ({ ...prev, image: file }));
-      setCurrentImage(null); // Eliminar la vista previa de la imagen actual
-      
       // Crear vista previa de la nueva imagen
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -120,50 +138,91 @@ const EditItem = () => {
     }
   };
 
+  // Agrega esta función para manejar la eliminación de la imagen
+  const handleRemoveImage = () => {
+    setFormData(prev => ({ ...prev, image: null }));
+    setPreviewImage(null);
+    setCurrentImage(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     
-    try {
-      const token = localStorage.getItem('access_token');
-      const formDataToSend = new FormData();
-      
-      // Agregar todos los campos al FormData
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('location', formData.location);
-      formDataToSend.append('status', formData.status);
-      formDataToSend.append('stock', formData.stock);
-      formDataToSend.append('min_stock', formData.min_stock);
-      formDataToSend.append('responsible_user', formData.responsible_user);
-      formDataToSend.append('qr_code', formData.qr_code);
-      
-      // Solo agregar la imagen si se ha seleccionado una nueva
-      if (formData.image) {
-        formDataToSend.append('image', formData.image);
-      } else if (!currentImage) {
-        // Si no hay imagen actual ni nueva, enviar campo vacío para borrar la imagen existente
-        formDataToSend.append('image', '');
+    const formDataToSend = new FormData();
+    let hasChanges = false;
+
+    // Lista de campos a comparar
+    const fieldsToCheck = [
+      'name', 'description', 'category', 'location', 
+      'status', 'stock', 'min_stock', 'responsible_user', 'qr_code'
+    ];
+
+    // Comparar cada campo
+    fieldsToCheck.forEach(field => {
+      // Comparación segura convirtiendo a String
+      if (String(formData[field]) !== String(originalData[field])) {
+        formDataToSend.append(field, formData[field]);
+        hasChanges = true;
+        console.log(`Campo modificado: ${field}`, formData[field]);
       }
-      
-      const response = await axios.put(
+    });
+
+    // Manejo especial de imagen
+    if (formData.image) {
+      formDataToSend.append('image', formData.image);
+      hasChanges = true;
+      console.log('Nueva imagen seleccionada');
+    } else if (!previewImage && currentImage) {
+      formDataToSend.append('image', '');
+      hasChanges = true;
+      console.log('Solicitud para eliminar imagen existente');
+    }
+
+    if (!hasChanges) {
+      setError('No se detectaron cambios');
+      setLoading(false);
+      return;
+    }
+    console.log('Datos a enviar:', 
+      Array.from(formDataToSend.entries()).reduce((obj, [key, val]) => {
+        obj[key] = val;
+        return obj;
+      }, {})
+    );
+
+    try {
+      const response = await axios.patch(
         `http://127.0.0.1:8000/items/update/${id}/`,
         formDataToSend,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'multipart/form-data'
           }
         }
       );
       
-      setSuccess(true);
-      setTimeout(() => navigate('/products'), 2000);
+      console.log('Respuesta del servidor:', response.data);
+      
+      if (response.data.message) {
+        setSuccess(true);
+        // Actualizar originalData con los nuevos valores
+        setOriginalData(formData);
+        // Actualizar la imagen actual si se subió una nueva
+        if (formData.image && previewImage) {
+          setCurrentImage(previewImage);
+        } else if (!previewImage && !formData.image) {
+          setCurrentImage(null);
+        }
+        setTimeout(() => navigate('/products'), 1500);
+      } else {
+        throw new Error('Respuesta inesperada del servidor');
+      }
     } catch (error) {
-      console.error('Error updating item:', error);
-      setError(error.response?.data?.message || 'Error al actualizar el ítem');
+      console.error('Error al actualizar:', error);
+      setError(error.response?.data?.error || 'Error al actualizar el ítem');
     } finally {
       setLoading(false);
     }
@@ -310,18 +369,16 @@ const EditItem = () => {
                           className="img-thumbnail"
                           style={{ maxHeight: '200px' }}
                         />
-                        {currentImage && !previewImage && (
-                          <div className="mt-2">
-                            <Button 
-                              variant="outline-danger" 
-                              size="sm"
-                              onClick={() => setCurrentImage(null)}
-                            >
-                              <i className="fas fa-trash me-1"></i>
-                              Eliminar imagen actual
-                            </Button>
-                          </div>
-                        )}
+                        <div className="mt-2">
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={handleRemoveImage}
+                          >
+                            <i className="fas fa-trash me-1"></i>
+                            Eliminar imagen
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </Form.Group>
@@ -451,7 +508,6 @@ const EditItem = () => {
         </Card.Body>
       </Card>
       
-      {/* Modal de confirmación para eliminar */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Confirmar Eliminación</Modal.Title>

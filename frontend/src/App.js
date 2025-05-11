@@ -10,6 +10,7 @@ import User from "./components/Users/User";
 import ItemDetail from "./components/Item/ItemDetail";
 import SendNotification from "./components/SendNotification";
 import AddItem from "./components/Item/AddItem";
+import EditItem from "./components/Item/EditItem";
 
 const App = () => {
   return (
@@ -26,6 +27,7 @@ const App = () => {
           <Route path="/items/:id" element={<ItemDetail />} />
           <Route path="/send-notification" element={<SendNotification />} />
           <Route path="/products/add" element={<AddItem />} />
+          <Route path="/products/edit/:id" element={<EditItem />} />
         </Route>
       </Routes>
     </Router>

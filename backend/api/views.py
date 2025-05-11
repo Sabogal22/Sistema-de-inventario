@@ -18,6 +18,11 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from django.db import transaction
 import logging
+import os
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -666,3 +671,90 @@ class ItemCreateAPIView(APIView):
         'success': False,
         'message': str(e)
       }, status=400)
+
+@csrf_exempt
+@require_http_methods(["PUT", "PATCH"])
+def update_item(request, item_id):
+    try:
+        item = Item.objects.get(id=item_id)
+    except Item.DoesNotExist:
+        return JsonResponse({'error': 'Item not found'}, status=404)
+
+    try:
+        # 1. Parsear datos según content-type
+        if 'multipart/form-data' in request.content_type:
+            data = {**request.POST.dict()}  # Combina POST y FILES
+            if 'image' in request.FILES:
+                data['image'] = request.FILES['image']
+            elif 'image' in request.POST:  # Para el caso de imagen vacía
+                data['image'] = request.POST['image']
+        else:
+            data = json.loads(request.body)
+
+        print("\n=== DATOS CRUDOS ===")
+        print("Request POST:", request.POST.dict())
+        print("Request FILES:", dict(request.FILES))
+        print("Data procesada:", data)
+
+        updated_fields = []
+        
+        # 2. Campos regulares (no relaciones)
+        regular_fields = ['name', 'description', 'stock', 'min_stock', 'qr_code']
+        for field in regular_fields:
+            if field in data:
+                new_value = data[field] if data[field] not in ['', None] else None
+                if str(getattr(item, field)) != str(new_value):
+                    setattr(item, field, new_value)
+                    updated_fields.append(field)
+
+        # 3. Campos de relación (foreign keys)
+        relation_fields = {
+            'category': Category,
+            'location': Location,
+            'status': Status,
+            'responsible_user': User
+        }
+        for field, model in relation_fields.items():
+            if field in data:
+                try:
+                    new_id = int(data[field]) if data[field] not in ['', None] else None
+                    current_id = getattr(item, f"{field}_id")
+                    
+                    if current_id != new_id:
+                        if new_id:
+                            setattr(item, field, model.objects.get(id=new_id))
+                        else:
+                            setattr(item, field, None)
+                        updated_fields.append(field)
+                except (ValueError, model.DoesNotExist) as e:
+                    print(f"Error en {field}: {str(e)}")
+
+        # 4. Manejo especial de imagen
+        if 'image' in data:
+            if data['image'] == '':  # Eliminar imagen
+                if item.image:
+                    item.image.delete(save=False)
+                    item.image = None
+                    updated_fields.append('image')
+            elif data['image']:  # Nueva imagen
+                if item.image:
+                    item.image.delete(save=False)
+                item.image = data['image']
+                updated_fields.append('image')
+
+        # 5. Guardar solo si hay cambios
+        if updated_fields:
+            item.save()
+            print(f"✅ Campos actualizados: {updated_fields}")
+        else:
+            print("⚠️ No hubo cambios reales")
+
+        return JsonResponse({
+            'message': 'Item updated successfully',
+            'updated_fields': updated_fields,
+            'image_url': item.image.url if item.image else None
+        })
+
+    except Exception as e:
+        print(f"\n❌ Error: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -394,9 +394,9 @@ const ItemDetail = () => {
           <i className="fa-solid fa-boxes-stacked me-2"></i> Gestionar Stock
         </button>
         
-        <button className="btn btn-primary">
+        <Link to={`/products/edit/${item.id}`} className="btn btn-primary">
           <i className="fa-solid fa-pen-to-square me-2"></i> Editar
-        </button>
+        </Link>
       </div>
 
       {/* Modal para gestionar stock */}
