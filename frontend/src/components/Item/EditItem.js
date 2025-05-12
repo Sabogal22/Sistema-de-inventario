@@ -10,6 +10,7 @@ import {
   Spinner,
   Row,
   Col,
+  InputGroup,
   FormControl,
   Modal
 } from 'react-bootstrap';
@@ -138,7 +139,6 @@ const EditItem = () => {
     }
   };
 
-  // Agrega esta función para manejar la eliminación de la imagen
   const handleRemoveImage = () => {
     setFormData(prev => ({ ...prev, image: null }));
     setPreviewImage(null);
@@ -161,11 +161,9 @@ const EditItem = () => {
 
     // Comparar cada campo
     fieldsToCheck.forEach(field => {
-      // Comparación segura convirtiendo a String
       if (String(formData[field]) !== String(originalData[field])) {
         formDataToSend.append(field, formData[field]);
         hasChanges = true;
-        console.log(`Campo modificado: ${field}`, formData[field]);
       }
     });
 
@@ -173,11 +171,9 @@ const EditItem = () => {
     if (formData.image) {
       formDataToSend.append('image', formData.image);
       hasChanges = true;
-      console.log('Nueva imagen seleccionada');
     } else if (!previewImage && currentImage) {
       formDataToSend.append('image', '');
       hasChanges = true;
-      console.log('Solicitud para eliminar imagen existente');
     }
 
     if (!hasChanges) {
@@ -185,12 +181,6 @@ const EditItem = () => {
       setLoading(false);
       return;
     }
-    console.log('Datos a enviar:', 
-      Array.from(formDataToSend.entries()).reduce((obj, [key, val]) => {
-        obj[key] = val;
-        return obj;
-      }, {})
-    );
 
     try {
       const response = await axios.patch(
@@ -203,8 +193,6 @@ const EditItem = () => {
           }
         }
       );
-      
-      console.log('Respuesta del servidor:', response.data);
       
       if (response.data.message) {
         setSuccess(true);
@@ -248,7 +236,7 @@ const EditItem = () => {
   return (
     <Container className="py-4">
       <Card className="shadow-sm border-0">
-        <Card.Header className="bg-primary text-white py-3">
+        <Card.Header className="bg-success text-white py-3">
           <div className="d-flex justify-content-between align-items-center">
             <h3 className="mb-0">
               <i className="fas fa-edit me-2"></i>
@@ -316,40 +304,46 @@ const EditItem = () => {
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Stock Actual *</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="0"
-                          name="stock"
-                          value={formData.stock}
-                          onChange={handleChange}
-                          required
-                        />
+                        <InputGroup>
+                          <FormControl
+                            type="number"
+                            min="0"
+                            name="stock"
+                            value={formData.stock}
+                            onChange={handleChange}
+                            required
+                          />
+                        </InputGroup>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Stock Mínimo *</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="1"
-                          name="min_stock"
-                          value={formData.min_stock}
-                          onChange={handleChange}
-                          required
-                        />
+                        <InputGroup>
+                          <FormControl
+                            type="number"
+                            min="1"
+                            name="min_stock"
+                            value={formData.min_stock}
+                            onChange={handleChange}
+                            required
+                          />
+                        </InputGroup>
                       </Form.Group>
                     </Col>
                   </Row>
                   
                   <Form.Group className="mb-3">
                     <Form.Label>Código QR (opcional)</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="qr_code"
-                      value={formData.qr_code}
-                      onChange={handleChange}
-                      placeholder="Código QR o identificador único"
-                    />
+                    <InputGroup>
+                      <FormControl
+                        type="text"
+                        name="qr_code"
+                        value={formData.qr_code}
+                        onChange={handleChange}
+                        placeholder="Código QR o identificador único"
+                      />
+                    </InputGroup>
                   </Form.Group>
                 </Col>
                 
@@ -392,6 +386,7 @@ const EditItem = () => {
                           value={formData.category}
                           onChange={handleChange}
                           required
+                          className="form-select"
                         >
                           <option value="">Seleccionar categoría</option>
                           {categories.map(cat => (
@@ -410,6 +405,7 @@ const EditItem = () => {
                           value={formData.location}
                           onChange={handleChange}
                           required
+                          className="form-select"
                         >
                           <option value="">Seleccionar ubicación</option>
                           {locations.map(loc => (
@@ -431,6 +427,7 @@ const EditItem = () => {
                           value={formData.status}
                           onChange={handleChange}
                           required
+                          className="form-select"
                         >
                           <option value="">Seleccionar estado</option>
                           {statuses.map(status => (
@@ -448,6 +445,7 @@ const EditItem = () => {
                           name="responsible_user"
                           value={formData.responsible_user}
                           onChange={handleChange}
+                          className="form-select"
                         >
                           <option value="">No asignado</option>
                           {users.map(user => (
@@ -508,22 +506,29 @@ const EditItem = () => {
         </Card.Body>
       </Card>
       
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirmar Eliminación</Modal.Title>
+      {/* Modal de confirmación para eliminar */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton className="bg-danger text-white">
+          <Modal.Title>
+            <i className="fas fa-exclamation-triangle me-2"></i>
+            Confirmar Eliminación
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          ¿Estás seguro de que deseas eliminar este ítem? Esta acción no se puede deshacer.
+          ¿Estás seguro de que deseas eliminar este ítem permanentemente? Esta acción no se puede deshacer.
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancelar
           </Button>
-          <Button variant="danger" onClick={handleDelete}>
+          <Button variant="danger" onClick={handleDelete} disabled={loading}>
             {loading ? (
               <Spinner animation="border" size="sm" />
             ) : (
-              'Eliminar'
+              <>
+                <i className="fas fa-trash me-1"></i>
+                Eliminar
+              </>
             )}
           </Button>
         </Modal.Footer>
