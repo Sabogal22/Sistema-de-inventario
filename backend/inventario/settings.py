@@ -137,7 +137,6 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Frontend en React
     "http://localhost:8089",  # URL de Locust
-    "https://sistema-de-inventario-9bcq.onrender.com",  # URL de Render
 ]
 
 # Opcional: Permitir credenciales (cookies, encabezados de autenticación)
