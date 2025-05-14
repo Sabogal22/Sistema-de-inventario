@@ -162,7 +162,7 @@ def check_low_stock(sender, instance, **kwargs):
       )
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def get_all_users(request):
   users = list(User.objects.all().values("id", "username", "email", "role"))
   print(users)
@@ -257,7 +257,7 @@ def delete_user(request, pk):
 
 # Obtener todas las ubicaciones
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def get_all_location(request):
   locations = Location.objects.all().values("id", "name")
   return Response(list(locations))
@@ -312,7 +312,7 @@ def delete_location(request, pk):
   
 # Obtiene todas las categorías
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def get_all_category(request):
   categories = Category.objects.all().values("id", "name")
   return Response(list(categories))
@@ -407,7 +407,7 @@ class ItemPagination(PageNumberPagination):
 
 # Obtener todos los items
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def get_all_item(request):
   items = Item.objects.select_related(
     'category', 
