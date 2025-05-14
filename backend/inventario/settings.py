@@ -14,7 +14,11 @@ SECRET_KEY = 'django-insecure-m^b^*%(jt)m(6r)teupsemihi)kmg+hw+a38liaf08k1&n1%!n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'sistema-de-inventario-9bcq.onrender.com',
+    'localhost',
+    '127.0.0.1',
+]
 
 
 # Application definition
@@ -137,6 +141,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Frontend en React
     "http://localhost:8089",  # URL de Locust
+    "https://sistema-de-inventario-9bcq.onrender.com",  # URL de Render
 ]
 
 # Opcional: Permitir credenciales (cookies, encabezados de autenticación)
