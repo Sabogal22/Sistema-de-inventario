@@ -18,11 +18,8 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from django.db import transaction
 import logging
-import os
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -387,16 +384,17 @@ def search_items(request):
 
 # Tarjetas del dashboard
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def dashboard_summary(request):
   total = Item.objects.count()
-  Disponible = Item.objects.filter(status__name__iexact="Disponible").count()
-  Mantenimiento = Item.objects.filter(status__name__iexact="Mantenimiento").count()
+  disponible = Item.objects.filter(status__name__iexact="Disponible").count()
+  mantenimiento = Item.objects.filter(status__name__iexact="Mantenimiento").count()
   no_disponibles = Item.objects.filter(status__name__iexact="No disponible").count()
 
   return Response({
     "total_items": total,
-    "Disponible": Disponible,
-    "Mantenimiento": Mantenimiento,
+    "Disponible": disponible,
+    "Mantenimiento": mantenimiento,
     "no_disponibles": no_disponibles
   })
 
@@ -675,86 +673,85 @@ class ItemCreateAPIView(APIView):
 @csrf_exempt
 @require_http_methods(["PUT", "PATCH", "POST"])
 def update_item(request, item_id):
+  try:
+    item = Item.objects.get(id=item_id)
+  except Item.DoesNotExist:
+    return JsonResponse({'error': 'Item not found'}, status=404)
+
+  # Initialize data and files
+  data = {}
+  files = {}
+
+  if 'multipart/form-data' in request.content_type:
+    # Handle form data
+    data = {k: v[0] if isinstance(v, list) else v for k, v in request.POST.lists()}
+    files = request.FILES
+  else:
     try:
-        item = Item.objects.get(id=item_id)
-    except Item.DoesNotExist:
-        return JsonResponse({'error': 'Item not found'}, status=404)
+      data = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+      return JsonResponse({'error': 'Invalid JSON data'}, status=400)
 
-    try:
-        # Debug avanzado
-        print("\n=== SOLICITUD RECIBIDA ===")
-        print("Método:", request.method)
-        print("Content-Type:", request.content_type)
-        print("Headers:", {k: v for k, v in request.headers.items()})
-        
-        # Manejar datos según el content-type
-        if 'multipart/form-data' in request.content_type:
-            data = request.POST.dict()
-            files = request.FILES
-        else:
-            try:
-                data = json.loads(request.body.decode('utf-8')) if request.body else {}
-                files = {}
-            except json.JSONDecodeError:
-                return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+  # Validate required fields
+  required_fields = ['name', 'stock', 'min_stock', 'category', 'location', 'status']
+  missing_fields = [field for field in required_fields if field not in data]
+  if missing_fields:
+    return JsonResponse({'error': f'Missing required fields: {", ".join(missing_fields)}'}, status=400)
 
-        print("\n=== DATOS PROCESADOS ===")
-        print("Datos:", data)
-        print("Archivos:", files)
+  try:
+    # Convert and validate numeric fields
+    stock = int(data['stock'])
+    min_stock = int(data['min_stock'])
+    category_id = int(data['category'])
+    location_id = int(data['location'])
+    status_id = int(data['status'])
 
-        # Validación básica de campos requeridos
-        required_fields = ['name', 'stock', 'min_stock', 'category', 'location', 'status']
-        for field in required_fields:
-            if field not in data:
-                return JsonResponse({'error': f'Campo requerido faltante: {field}'}, status=400)
-
-        # Actualizar campos simples
-        item.name = data.get('name')
-        item.description = data.get('description', '')
-        item.qr_code = data.get('qr_code', '')
-        
-        try:
-            item.stock = int(data.get('stock', 1))
-            item.min_stock = int(data.get('min_stock', 1))
-        except (ValueError, TypeError):
-            return JsonResponse({'error': 'Stock debe ser un número válido'}, status=400)
-
-        # Actualizar relaciones con manejo de errores
-        try:
-            item.category = Category.objects.get(id=int(data.get('category')))
-            item.location = Location.objects.get(id=int(data.get('location')))
-            item.status = Status.objects.get(id=int(data.get('status')))
+    if stock < 0 or min_stock < 1:
+      raise ValueError("Invalid stock values")
             
-            responsible_user = data.get('responsible_user')
-            if responsible_user and responsible_user != '':
-                item.responsible_user = User.objects.get(id=int(responsible_user))
-            else:
-                item.responsible_user = None
-        except (ValueError, ObjectDoesNotExist) as e:
-            return JsonResponse({'error': f'Error en relaciones: {str(e)}'}, status=400)
+  except (ValueError, TypeError) as e:
+    return JsonResponse({'error': f'Invalid numeric values: {str(e)}'}, status=400)
 
-        # Manejo de imagen
-        if 'image' in files:
-            if item.image:
-                item.image.delete(save=False)
-            item.image = files['image']
-        elif data.get('image') == '':
-            if item.image:
-                item.image.delete(save=False)
-                item.image = None
+  # Update the item
+  try:
+    item.name = data['name']
+    item.description = data.get('description', item.description)
+    item.qr_code = data.get('qr_code', item.qr_code)
+    item.stock = stock
+    item.min_stock = min_stock
 
-        item.save()
+    # Update relationships
+    item.category = Category.objects.get(id=category_id)
+    item.location = Location.objects.get(id=location_id)
+    item.status = Status.objects.get(id=status_id)
+
+    # Handle responsible user
+    responsible_user = data.get('responsible_user', '')
+    if responsible_user and str(responsible_user).isdigit():
+      item.responsible_user = User.objects.get(id=int(responsible_user))
+    else:
+      item.responsible_user = None
+
+    # Handle image
+    if 'image' in files:
+      if item.image:
+        item.image.delete(save=False)
+      item.image = files['image']
+    elif data.get('image') == '':
+      if item.image:
+        item.image.delete(save=False)
+      item.image = None
+
+    item.save()
         
-        return JsonResponse({
-            'success': True,
-            'message': 'Ítem actualizado correctamente',
-            'item_id': item.id,
-            'name': item.name
-        })
+    return JsonResponse({
+      'success': True,
+      'message': 'Item updated successfully',
+      'item_id': item.id
+    })
 
-    except Exception as e:
-        print(f"\n❌ ERROR CRÍTICO: {str(e)}")
-        return JsonResponse({
-            'error': 'Error interno del servidor',
-            'details': str(e)
-        }, status=500)
+  except Exception as e:
+    return JsonResponse({
+      'error': 'Error updating item',
+      'details': str(e)
+    }, status=500)
