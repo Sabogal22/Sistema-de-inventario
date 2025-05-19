@@ -25,7 +25,7 @@ pyinstaller-hooks-contrib==2024.2
 PyJWT==2.10.1
 pylint==3.3.4
 pywin32-ctypes==0.2.2
-setuptools==69.1.1
+setuptools==70.0.0
 sqlparse==0.5.1
 tomlkit==0.13.2
 tzdata==2024.1
