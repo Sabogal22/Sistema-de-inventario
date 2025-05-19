@@ -8,6 +8,8 @@ const Locations = () => {
   const [editingLocation, setEditingLocation] = useState(null);
   const [editedName, setEditedName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Ajusta la cantidad de items por página
   const token = localStorage.getItem("access_token");
 
   const fetchLocations = useCallback(async () => {
@@ -53,6 +55,7 @@ const Locations = () => {
         text: "Ubicación agregada correctamente",
         confirmButtonColor: "#198754"
       });
+      setCurrentPage(totalPages); // Ir a la última página si agregas nuevo
     } catch (error) {
       console.error("Error al agregar ubicación:", error);
       Swal.fire({
@@ -132,6 +135,9 @@ const Locations = () => {
             text: "Ubicación eliminada correctamente",
             confirmButtonColor: "#198754"
           });
+          // Ajustar página si eliminaste el último item de la última página
+          const lastPage = Math.ceil((locations.length - 1) / itemsPerPage);
+          if (currentPage > lastPage) setCurrentPage(lastPage);
         } catch (error) {
           console.error("Error al eliminar ubicación:", error);
           Swal.fire({
@@ -145,6 +151,18 @@ const Locations = () => {
     });
   };
 
+  // Paginación:
+  const totalPages = Math.ceil(locations.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = locations.slice(indexOfFirstItem, indexOfLastItem);
+
+  const goToPage = (pageNumber) => {
+    if (pageNumber < 1) return;
+    if (pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
+  };
+
   return (
     <div className="container py-4">
       <div className="card shadow border-0">
@@ -154,7 +172,7 @@ const Locations = () => {
             Gestión de Ubicaciones
           </h2>
         </div>
-        
+
         <div className="card-body">
           {/* Formulario para agregar nueva ubicación */}
           <div className="row mb-4">
@@ -168,8 +186,8 @@ const Locations = () => {
                   onChange={(e) => setNewLocation(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addLocation()}
                 />
-                <button 
-                  className="btn btn-success px-4" 
+                <button
+                  className="btn btn-success px-4"
                   onClick={addLocation}
                   disabled={!newLocation.trim()}
                 >
@@ -198,7 +216,7 @@ const Locations = () => {
                       </div>
                     </td>
                   </tr>
-                ) : locations.length === 0 ? (
+                ) : currentItems.length === 0 ? (
                   <tr>
                     <td colSpan="3" className="text-center py-4 text-muted">
                       <i className="fa-solid fa-inbox fa-2x mb-3"></i>
@@ -206,7 +224,7 @@ const Locations = () => {
                     </td>
                   </tr>
                 ) : (
-                  locations.map((location) => (
+                  currentItems.map((location) => (
                     <tr key={location.id} className={editingLocation === location.id ? "table-active" : ""}>
                       <td className="fw-bold">{location.id}</td>
                       <td>
@@ -271,6 +289,31 @@ const Locations = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Controles de paginación */}
+          <nav>
+            <ul className="pagination justify-content-center">
+              <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                <button className="page-link" onClick={() => goToPage(currentPage - 1)}>Anterior</button>
+              </li>
+
+              {[...Array(totalPages)].map((_, idx) => {
+                const page = idx + 1;
+                return (
+                  <li
+                    key={page}
+                    className={`page-item ${currentPage === page ? "active" : ""}`}
+                  >
+                    <button className="page-link" onClick={() => goToPage(page)}>{page}</button>
+                  </li>
+                );
+              })}
+
+              <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                <button className="page-link" onClick={() => goToPage(currentPage + 1)}>Siguiente</button>
+              </li>
+            </ul>
+          </nav>
         </div>
       </div>
     </div>

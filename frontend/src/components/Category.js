@@ -8,6 +8,8 @@ const Category = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editedName, setEditedName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Categorías por página
   const token = localStorage.getItem("access_token");
 
   const fetchCategories = useCallback(async () => {
@@ -23,7 +25,7 @@ const Category = () => {
         icon: "error",
         title: "Error",
         text: "No se pudieron cargar las categorías",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
     } finally {
       setIsLoading(false);
@@ -40,7 +42,7 @@ const Category = () => {
         icon: "error",
         title: "Campo requerido",
         text: "El nombre de la categoría no puede estar vacío",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
       return;
     }
@@ -50,13 +52,19 @@ const Category = () => {
         { name: newCategory },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setCategories([...categories, response.data]);
+      const updatedCategories = [...categories, response.data];
+      setCategories(updatedCategories);
       setNewCategory("");
+
+      // Actualiza la página a la última con el nuevo total
+      const newTotalPages = Math.ceil(updatedCategories.length / itemsPerPage);
+      setCurrentPage(newTotalPages);
+
       Swal.fire({
         icon: "success",
         title: "¡Éxito!",
         text: "Categoría agregada correctamente",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
     } catch (error) {
       console.error("Error al agregar categoría:", error);
@@ -64,7 +72,7 @@ const Category = () => {
         icon: "error",
         title: "Error",
         text: error.response?.data?.message || "No se pudo agregar la categoría",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
     }
   };
@@ -85,7 +93,7 @@ const Category = () => {
         icon: "error",
         title: "Campo requerido",
         text: "El nombre de la categoría no puede estar vacío",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
       return;
     }
@@ -101,7 +109,7 @@ const Category = () => {
         icon: "success",
         title: "¡Éxito!",
         text: "Categoría actualizada correctamente",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
     } catch (error) {
       console.error("Error al actualizar categoría:", error);
@@ -109,7 +117,7 @@ const Category = () => {
         icon: "error",
         title: "Error",
         text: error.response?.data?.message || "No se pudo actualizar la categoría",
-        confirmButtonColor: "#198754"
+        confirmButtonColor: "#198754",
       });
     }
   };
@@ -130,24 +138,40 @@ const Category = () => {
           await axios.delete(`http://127.0.0.1:8000/category/${id}/delete/`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          setCategories(categories.filter(cat => cat.id !== id));
+          const updatedCategories = categories.filter(cat => cat.id !== id);
+          setCategories(updatedCategories);
           Swal.fire({
             icon: "success",
             title: "¡Eliminado!",
             text: "Categoría eliminada correctamente",
-            confirmButtonColor: "#198754"
+            confirmButtonColor: "#198754",
           });
+          // Ajustar página si eliminaste el último item de la última página
+          const lastPage = Math.ceil(updatedCategories.length / itemsPerPage);
+          if (currentPage > lastPage) setCurrentPage(lastPage);
         } catch (error) {
           console.error("Error al eliminar categoría:", error);
           Swal.fire({
             icon: "error",
             title: "Error",
             text: error.response?.data?.message || "No se pudo eliminar la categoría",
-            confirmButtonColor: "#198754"
+            confirmButtonColor: "#198754",
           });
         }
       }
     });
+  };
+
+  // Paginación client-side:
+  const totalPages = Math.ceil(categories.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = categories.slice(indexOfFirstItem, indexOfLastItem);
+
+  const goToPage = (pageNumber) => {
+    if (pageNumber < 1) return;
+    if (pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
   };
 
   return (
@@ -159,7 +183,7 @@ const Category = () => {
             Gestión de Categorías
           </h2>
         </div>
-        
+
         <div className="card-body">
           {/* Formulario para agregar nueva categoría */}
           <div className="row mb-4">
@@ -171,10 +195,10 @@ const Category = () => {
                   placeholder="Nombre de la nueva categoría"
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addCategory()}
+                  onKeyPress={(e) => e.key === "Enter" && addCategory()}
                 />
-                <button 
-                  className="btn btn-success px-4" 
+                <button
+                  className="btn btn-success px-4"
                   onClick={addCategory}
                   disabled={!newCategory.trim()}
                 >
@@ -203,7 +227,7 @@ const Category = () => {
                       </div>
                     </td>
                   </tr>
-                ) : categories.length === 0 ? (
+                ) : currentItems.length === 0 ? (
                   <tr>
                     <td colSpan="3" className="text-center py-4 text-muted">
                       <i className="fa-solid fa-inbox fa-2x mb-3"></i>
@@ -211,8 +235,11 @@ const Category = () => {
                     </td>
                   </tr>
                 ) : (
-                  categories.map((category) => (
-                    <tr key={category.id} className={editingCategory === category.id ? "table-active" : ""}>
+                  currentItems.map((category) => (
+                    <tr
+                      key={category.id}
+                      className={editingCategory === category.id ? "table-active" : ""}
+                    >
                       <td className="fw-bold">{category.id}</td>
                       <td>
                         {editingCategory === category.id ? (
@@ -276,6 +303,37 @@ const Category = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <nav aria-label="Page navigation example">
+              <ul className="pagination justify-content-center">
+                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={() => goToPage(currentPage - 1)}>
+                    Anterior
+                  </button>
+                </li>
+                {[...Array(totalPages)].map((_, idx) => {
+                  const page = idx + 1;
+                  return (
+                    <li
+                      key={page}
+                      className={`page-item ${page === currentPage ? "active" : ""}`}
+                    >
+                      <button className="page-link" onClick={() => goToPage(page)}>
+                        {page}
+                      </button>
+                    </li>
+                  );
+                })}
+                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={() => goToPage(currentPage + 1)}>
+                    Siguiente
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          )}
         </div>
       </div>
     </div>
