@@ -66,11 +66,17 @@ El objetivo del proyecto es permitir el registro, visualización y control bási
 
 ## 📷 Capturas de pantalla
 
-_Aquí puedes incluir algunas imágenes si lo deseas._
+## VISTAS
+
+Principal
+<img width="1710" alt="Captura de pantalla 2025-05-05 a las 3 39 48 p  m" src="https://github.com/user-attachments/assets/bdeda48f-f32a-4f31-b959-665f68a22299" />
+
+Detalles del Item
+<img width="1710" alt="Captura de pantalla 2025-05-19 a las 2 13 43 p  m" src="https://github.com/user-attachments/assets/d2b3839e-fba9-41dd-a0b0-a108272eca28" />
 
 ## 📄 Licencia
 
-Este proyecto es de uso educativo. Puedes modificarlo libremente para fines académicos.
+Este proyecto es de uso educativo. Puedes modificarlo o utilizarlo libremente para fines académicos.
 
 ---
 
