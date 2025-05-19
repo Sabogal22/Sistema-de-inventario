@@ -1,67 +1,89 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { Card, Row, Col, InputGroup, FormControl, ListGroup, Alert, Spinner, Badge } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Form,
+  Spinner,
+  Alert,
+  ListGroup,
+  InputGroup,
+  FormControl,
+  Badge,
+} from "react-bootstrap";
 
 const Dashboard = () => {
-  const [summary, setSummary] = useState({
-    total_items: 0,
-    disponibles: 0,
-    mantenimiento: 0,
-    no_disponibles: 0,
-  });
+  const [summary, setSummary] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
   const [noResults, setNoResults] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Obtener datos del dashboard
-  useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const response = await axios.get("http://127.0.0.1:8000/dashboard/summary/");
-        setSummary(response.data);
-      } catch (error) {
-        console.error("Error al obtener el resumen:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    fetchSummary();
-  }, []);
+  const token = localStorage.getItem("access_token");
 
-  // Buscar ítems
   useEffect(() => {
-    const fetchItems = async () => {
-      if (searchTerm.trim() === "") {
-        setResults([]);
-        setNoResults(false);
-        return;
-      }
+    setLoadingSummary(true);
+    axios
+      .get("http://127.0.0.1:8000/dashboard/summary/", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setSummary(res.data))
+      .catch((err) => {
+        setError("Error cargando el resumen");
+      })
+      .finally(() => setLoadingSummary(false));
+  }, [token, navigate]);
 
-      try {
-        setSearchLoading(true);
-        const response = await axios.get(`http://127.0.0.1:8000/items/search/?q=${searchTerm}`);
-        setResults(response.data);
-        setNoResults(response.data.length === 0);
-      } catch (error) {
-        console.error("Error buscando ítems:", error);
+  useEffect(() => {
+    if (!token) return;
+    if (searchTerm.trim() === "") {
+      setResults([]);
+      setNoResults(false);
+      return;
+    }
+
+    setLoadingSearch(true);
+    axios
+      .get(`http://127.0.0.1:8000/items/search/?q=${encodeURIComponent(searchTerm)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        setResults(res.data);
+        setNoResults(res.data.length === 0);
+        setError(null);
+      })
+      .catch(() => {
         setResults([]);
         setNoResults(true);
-      } finally {
-        setSearchLoading(false);
-      }
-    };
+        setError("Error buscando ítems");
+      })
+      .finally(() => setLoadingSearch(false));
+  }, [searchTerm, token]);
 
-    const delayDebounce = setTimeout(() => {
-      fetchItems();
-    }, 500);
+  if (!token) return null;
 
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm]);
+  // Mostrar spinner o error mientras carga summary
+  if (loadingSummary) {
+    return (
+      <div className="text-center my-5">
+        <Spinner animation="border" variant="success" />
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <Alert variant="danger" className="my-5">
+        No se pudo cargar el resumen
+      </Alert>
+    );
+  }
 
   const statusCards = [
     {
@@ -69,29 +91,29 @@ const Dashboard = () => {
       value: summary.total_items,
       icon: "fa-box",
       color: "primary",
-      text: "text-white"
+      text: "text-white",
     },
     {
       title: "Disponibles",
       value: summary.Disponible,
       icon: "fa-check-circle",
       color: "success",
-      text: "text-white"
+      text: "text-white",
     },
     {
       title: "Mantenimiento",
       value: summary.Mantenimiento,
       icon: "fa-tools",
       color: "warning",
-      text: "text-dark"
+      text: "text-dark",
     },
     {
       title: "No Disponibles",
       value: summary.no_disponibles,
       icon: "fa-ban",
       color: "danger",
-      text: "text-white"
-    }
+      text: "text-white",
+    },
   ];
 
   return (
@@ -110,36 +132,34 @@ const Dashboard = () => {
       </div>
 
       {/* Tarjetas de resumen */}
-      {isLoading ? (
-        <div className="text-center my-5">
-          <Spinner animation="border" variant="success" />
-        </div>
-      ) : (
-        <Row className="g-4 mb-4">
-          {statusCards.map((card, index) => (
-            <Col key={index} md={6} lg={3}>
-              <Card className={`shadow-sm border-0 bg-${card.color} h-100`}>
-                <Card.Body className="d-flex flex-column">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h5 className={`mb-0 ${card.text}`}>
-                      <i className={`fas ${card.icon} me-2`}></i>
-                      {card.title}
-                    </h5>
-                    <div className={`bg-white bg-opacity-25 rounded-circle p-2 d-flex align-items-center justify-content-center ${card.text}`}
-                      style={{ width: "40px", height: "40px" }}>
-                      <i className={`fas ${card.icon}`}></i>
-                    </div>
+      <Row className="g-4 mb-4">
+        {statusCards.map((card, index) => (
+          <Col key={index} md={6} lg={3}>
+            <Card className={`shadow-sm border-0 bg-${card.color} h-100`}>
+              <Card.Body className="d-flex flex-column">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h5 className={`mb-0 ${card.text}`}>
+                    <i className={`fas ${card.icon} me-2`}></i>
+                    {card.title}
+                  </h5>
+                  <div
+                    className={`bg-white bg-opacity-25 rounded-circle p-2 d-flex align-items-center justify-content-center ${card.text}`}
+                    style={{ width: "40px", height: "40px" }}
+                  >
+                    <i className={`fas ${card.icon}`}></i>
                   </div>
-                  <div className="mt-auto">
-                    <h2 className={`mb-0 ${card.text}`}>{card.value}</h2>
-                    <small className={`${card.text} opacity-75`}>Ítems registrados</small>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      )}
+                </div>
+                <div className="mt-auto">
+                  <h2 className={`mb-0 ${card.text}`}>{card.value}</h2>
+                  <small className={`${card.text} opacity-75`}>
+                    Ítems registrados
+                  </small>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
       {/* Sección de búsqueda */}
       <Card className="shadow-sm border-0">
@@ -148,7 +168,7 @@ const Dashboard = () => {
             <i className="fas fa-search text-success me-2"></i>
             Buscar ítem
           </h3>
-          
+
           <InputGroup className="mb-3">
             <InputGroup.Text className="bg-light">
               <i className="fas fa-search text-muted"></i>
@@ -160,7 +180,7 @@ const Dashboard = () => {
             />
           </InputGroup>
 
-          {searchLoading ? (
+          {loadingSearch ? (
             <div className="text-center py-3">
               <Spinner animation="border" variant="success" size="sm" />
               <span className="ms-2">Buscando ítems...</span>
@@ -173,9 +193,9 @@ const Dashboard = () => {
           ) : results.length > 0 ? (
             <ListGroup variant="flush">
               {results.map((item) => (
-                <ListGroup.Item 
-                  key={item.id} 
-                  action 
+                <ListGroup.Item
+                  key={item.id}
+                  action
                   onClick={() => navigate(`/items/${item.id}`)}
                   className="d-flex justify-content-between align-items-center py-3"
                 >
