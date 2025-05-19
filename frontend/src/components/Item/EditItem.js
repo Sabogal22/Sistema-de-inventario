@@ -150,67 +150,81 @@ const EditItem = () => {
     setLoading(true);
     setError(null);
     
-    const formDataToSend = new FormData();
-    let hasChanges = false;
-
-    // Lista de campos a comparar
-    const fieldsToCheck = [
-      'name', 'description', 'category', 'location', 
-      'status', 'stock', 'min_stock', 'responsible_user', 'qr_code'
-    ];
-
-    // Comparar cada campo
-    fieldsToCheck.forEach(field => {
-      if (String(formData[field]) !== String(originalData[field])) {
-        formDataToSend.append(field, formData[field]);
-        hasChanges = true;
-      }
-    });
-
-    // Manejo especial de imagen
-    if (formData.image) {
-      formDataToSend.append('image', formData.image);
-      hasChanges = true;
-    } else if (!previewImage && currentImage) {
-      formDataToSend.append('image', '');
-      hasChanges = true;
-    }
-
-    if (!hasChanges) {
-      setError('No se detectaron cambios');
+    // Validación básica antes de enviar
+    if (!formData.name || !formData.category || !formData.location || !formData.status) {
+      setError('Por favor complete todos los campos requeridos');
       setLoading(false);
       return;
     }
 
+    // Crear FormData con todos los campos necesarios
+    const formDataToSend = new FormData();
+    
+    // Campos obligatorios
+    formDataToSend.append('name', formData.name);
+    formDataToSend.append('category', formData.category);
+    formDataToSend.append('location', formData.location);
+    formDataToSend.append('status', formData.status);
+    formDataToSend.append('stock', formData.stock);
+    formDataToSend.append('min_stock', formData.min_stock);
+
+    // Campos opcionales
+    if (formData.description) formDataToSend.append('description', formData.description);
+    if (formData.qr_code) formDataToSend.append('qr_code', formData.qr_code);
+    if (formData.responsible_user) formDataToSend.append('responsible_user', formData.responsible_user);
+
+    // Manejo de imagen
+    if (formData.image) {
+      formDataToSend.append('image', formData.image);
+    } else if (!previewImage && currentImage) {
+      formDataToSend.append('image', ''); // Para eliminar imagen existente
+    }
+
+    // Debug: Mostrar lo que se enviará
+    console.log('Enviando datos:');
+    for (let [key, value] of formDataToSend.entries()) {
+      console.log(key, value);
+    }
+
     try {
-      const response = await axios.patch(
+      const token = localStorage.getItem('access_token');
+      const response = await axios.post(
         `http://127.0.0.1:8000/items/update/${id}/`,
         formDataToSend,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'multipart/form-data'
-          }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          timeout: 10000 // 10 segundos de timeout
         }
       );
       
-      if (response.data.message) {
+      if (response.data.success) {
         setSuccess(true);
-        // Actualizar originalData con los nuevos valores
-        setOriginalData(formData);
-        // Actualizar la imagen actual si se subió una nueva
-        if (formData.image && previewImage) {
-          setCurrentImage(previewImage);
-        } else if (!previewImage && !formData.image) {
-          setCurrentImage(null);
-        }
-        setTimeout(() => navigate('/products'), 1500);
+        setTimeout(() => navigate('/products'), 1000);
       } else {
-        throw new Error('Respuesta inesperada del servidor');
+        throw new Error(response.data.error || 'Error desconocido');
       }
     } catch (error) {
-      console.error('Error al actualizar:', error);
-      setError(error.response?.data?.error || 'Error al actualizar el ítem');
+      console.error('Error en la solicitud:', error);
+      
+      let errorMessage = 'Error al actualizar el ítem';
+      if (error.response) {
+        // Error del servidor (4xx, 5xx)
+        errorMessage = error.response.data.error || 
+                      error.response.data.details || 
+                      `Error ${error.response.status}: ${error.response.statusText}`;
+      } else if (error.request) {
+        // La solicitud fue hecha pero no hubo respuesta
+        errorMessage = 'No se recibió respuesta del servidor';
+      } else {
+        // Error al configurar la solicitud
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

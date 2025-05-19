@@ -673,88 +673,88 @@ class ItemCreateAPIView(APIView):
       }, status=400)
 
 @csrf_exempt
-@require_http_methods(["PUT", "PATCH"])
+@require_http_methods(["PUT", "PATCH", "POST"])
 def update_item(request, item_id):
-  try:
-    item = Item.objects.get(id=item_id)
-  except Item.DoesNotExist:
-    return JsonResponse({'error': 'Item not found'}, status=404)
+    try:
+        item = Item.objects.get(id=item_id)
+    except Item.DoesNotExist:
+        return JsonResponse({'error': 'Item not found'}, status=404)
 
-  try:
-    # 1. Parsear datos según content-type
-    if 'multipart/form-data' in request.content_type:
-      data = {**request.POST.dict()}  # Combina POST y FILES
-      if 'image' in request.FILES:
-        data['image'] = request.FILES['image']
-      elif 'image' in request.POST:  # Para el caso de imagen vacía
-        data['image'] = request.POST['image']
-    else:
-      data = json.loads(request.body)
-
-    print("\n=== DATOS CRUDOS ===")
-    print("Request POST:", request.POST.dict())
-    print("Request FILES:", dict(request.FILES))
-    print("Data procesada:", data)
-
-    updated_fields = []
+    try:
+        # Debug avanzado
+        print("\n=== SOLICITUD RECIBIDA ===")
+        print("Método:", request.method)
+        print("Content-Type:", request.content_type)
+        print("Headers:", {k: v for k, v in request.headers.items()})
         
-    # 2. Campos regulares (no relaciones)
-    regular_fields = ['name', 'description', 'stock', 'min_stock', 'qr_code']
-    for field in regular_fields:
-      if field in data:
-        new_value = data[field] if data[field] not in ['', None] else None
-        if str(getattr(item, field)) != str(new_value):
-          setattr(item, field, new_value)
-          updated_fields.append(field)
+        # Manejar datos según el content-type
+        if 'multipart/form-data' in request.content_type:
+            data = request.POST.dict()
+            files = request.FILES
+        else:
+            try:
+                data = json.loads(request.body.decode('utf-8')) if request.body else {}
+                files = {}
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON data'}, status=400)
 
-    # 3. Campos de relación (foreign keys)
-    relation_fields = {
-      'category': Category,
-      'location': Location,
-      'status': Status,
-      'responsible_user': User
-    }
-    for field, model in relation_fields.items():
-      if field in data:
+        print("\n=== DATOS PROCESADOS ===")
+        print("Datos:", data)
+        print("Archivos:", files)
+
+        # Validación básica de campos requeridos
+        required_fields = ['name', 'stock', 'min_stock', 'category', 'location', 'status']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({'error': f'Campo requerido faltante: {field}'}, status=400)
+
+        # Actualizar campos simples
+        item.name = data.get('name')
+        item.description = data.get('description', '')
+        item.qr_code = data.get('qr_code', '')
+        
         try:
-          new_id = int(data[field]) if data[field] not in ['', None] else None
-          current_id = getattr(item, f"{field}_id")
-                    
-          if current_id != new_id:
-            if new_id:
-              setattr(item, field, model.objects.get(id=new_id))
+            item.stock = int(data.get('stock', 1))
+            item.min_stock = int(data.get('min_stock', 1))
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Stock debe ser un número válido'}, status=400)
+
+        # Actualizar relaciones con manejo de errores
+        try:
+            item.category = Category.objects.get(id=int(data.get('category')))
+            item.location = Location.objects.get(id=int(data.get('location')))
+            item.status = Status.objects.get(id=int(data.get('status')))
+            
+            responsible_user = data.get('responsible_user')
+            if responsible_user and responsible_user != '':
+                item.responsible_user = User.objects.get(id=int(responsible_user))
             else:
-              setattr(item, field, None)
-            updated_fields.append(field)
-        except (ValueError, model.DoesNotExist) as e:
-          print(f"Error en {field}: {str(e)}")
+                item.responsible_user = None
+        except (ValueError, ObjectDoesNotExist) as e:
+            return JsonResponse({'error': f'Error en relaciones: {str(e)}'}, status=400)
 
-    # 4. Manejo especial de imagen
-    if 'image' in data:
-      if data['image'] == '':  # Eliminar imagen
-        if item.image:
-          item.image.delete(save=False)
-          item.image = None
-          updated_fields.append('image')
-      elif data['image']:  # Nueva imagen
-        if item.image:
-          item.image.delete(save=False)
-        item.image = data['image']
-        updated_fields.append('image')
+        # Manejo de imagen
+        if 'image' in files:
+            if item.image:
+                item.image.delete(save=False)
+            item.image = files['image']
+        elif data.get('image') == '':
+            if item.image:
+                item.image.delete(save=False)
+                item.image = None
 
-    # 5. Guardar solo si hay cambios
-    if updated_fields:
-      item.save()
-      print(f"✅ Campos actualizados: {updated_fields}")
-    else:
-      print("⚠️ No hubo cambios reales")
+        item.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Ítem actualizado correctamente',
+            'item_id': item.id,
+            'name': item.name
+        })
 
-    return JsonResponse({
-      'message': 'Item updated successfully',
-      'updated_fields': updated_fields,
-      'image_url': item.image.url if item.image else None
-    })
-
-  except Exception as e:
-    print(f"\n❌ Error: {str(e)}")
-    return JsonResponse({'error': str(e)}, status=400)
+    except Exception as e:
+        print(f"\n❌ ERROR CRÍTICO: {str(e)}")
+        return JsonResponse({
+            'error': 'Error interno del servidor',
+            'details': str(e)
+        }, status=500)
