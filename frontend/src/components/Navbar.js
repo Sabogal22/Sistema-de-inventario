@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -357,9 +358,20 @@ const Navbar = () => {
 
               <ul className="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                 <li>
-                  <Link className="dropdown-item" to="/profile">
+                  <button 
+                    className="dropdown-item"
+                    onClick={() => {
+                      Swal.fire({
+                        icon: "info",
+                        title: "Próximamente",
+                        text: "La sección 'Mi perfil' estará disponible en una futura actualización.",
+                        confirmButtonColor: "#28a745"
+                      });
+                    }}
+                  >
                     <i className="fa-solid fa-user-gear me-2"></i> Mi perfil
-                  </Link>
+                    <small className="text-muted ms-1">(Próximamente)</small>
+                  </button>
                 </li>
                 {user.role === "admin" && (
                   <li>
@@ -369,9 +381,20 @@ const Navbar = () => {
                   </li>
                 )}
                 <li>
-                  <Link className="dropdown-item" to="/settings">
+                  <button 
+                    className="dropdown-item"
+                    onClick={() => {
+                      Swal.fire({
+                        icon: "info",
+                        title: "Próximamente",
+                        text: "La sección 'Configuración' estará disponible en una futura actualización.",
+                        confirmButtonColor: "#28a745"
+                      });
+                    }}
+                  >
                     <i className="fa-solid fa-gear me-2"></i> Configuración
-                  </Link>
+                    <small className="text-muted ms-1">(Próximamente)</small>
+                  </button>
                 </li>
                 <li><hr className="dropdown-divider" /></li>
                 <li>
